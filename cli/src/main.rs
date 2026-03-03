@@ -129,8 +129,16 @@ fn handle_compress(
             let compressed = pipeline.process_file(input_path, &data, config)?;
             let compressed_size = compressed.len() as u64;
 
-            // Skip if compressed is larger
-            if compressed_size >= original_size {
+            // For audio formats with metadata stripping, always write output
+            // (the goal is metadata removal, not size reduction)
+            let format = ImageFormat::from_path(input_path);
+            let is_metadata_strip = matches!(
+                format,
+                Some(ImageFormat::Mp3) | Some(ImageFormat::Wav)
+            ) && !matches!(config.strip, StripMode::None);
+
+            // Skip if compressed is larger (but not for audio metadata stripping)
+            if compressed_size >= original_size && !is_metadata_strip {
                 log::debug!(
                     "Skipping {} — compressed ({}) >= original ({})",
                     input_path.display(),
