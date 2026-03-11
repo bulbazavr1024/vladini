@@ -120,6 +120,8 @@ pub async fn compress(mut multipart: Multipart) -> Result<Response, StatusCode> 
         backup: false,
         extract_frames: false,
         fps: 0.0,
+        resize_width: None,
+        resize_height: None,
     };
 
     // Process file
@@ -206,6 +208,8 @@ pub async fn convert(mut multipart: Multipart) -> Result<Response, StatusCode> {
         backup: false,
         extract_frames: false,
         fps: 0.0,
+        resize_width: None,
+        resize_height: None,
     };
 
     // Convert

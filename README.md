@@ -30,7 +30,7 @@ image_preparer_workspace/
 | Format | Compress | Convert | Inspect | Extract |
 |--------|----------|---------|---------|---------|
 | PNG    | ✅       | ✅      | ✅      | -       |
-| JPG    | -        | ✅      | -       | -       |
+| JPG    | ✅       | ✅      | ✅      | -       |
 | WebP   | ✅       | ✅      | ✅      | -       |
 | MP3    | ✅*      | -       | ✅      | -       |
 | MP4    | ✅       | -       | ✅      | ✅      |
@@ -39,7 +39,7 @@ image_preparer_workspace/
 
 ### Operations
 
-- **Compress**: Reduce file size with lossy/lossless algorithms
+- **Compress**: Reduce file size with lossy/lossless algorithms + optional resize
 - **Convert**: Transform between image formats (PNG ↔ JPG ↔ WebP)
 - **Inspect**: View detailed metadata
 - **Extract**: Extract video frames to PNG images
@@ -170,6 +170,12 @@ See [CLAUDE.md](cli/CLAUDE.md) for detailed development guide.
 # Compress all PNGs in a directory
 image_preparer compress ./photos/ ./optimized/ -q 85 -r
 
+# Resize and compress for web
+image_preparer compress ./photos/ -r -q 80 --width 1200
+
+# Resize to exact dimensions
+image_preparer compress photo.png --width 800 --height 600
+
 # Convert all JPGs to WebP
 for f in *.jpg; do
   image_preparer convert "$f" --to webp
@@ -244,7 +250,6 @@ This is a personal project, but suggestions are welcome.
 - Large files loaded entirely into RAM
 - No streaming processing yet
 - Frame extraction only available in CLI (not API)
-- JPEG compression not implemented (conversion only)
 
 ## Troubleshooting
 

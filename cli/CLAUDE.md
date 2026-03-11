@@ -115,6 +115,7 @@ image_preparer extract <input> <output> [options]
 
 ### ✅ PNG (`src/processor/png.rs`)
 - **Compression**: Lossy via imagequant → Lossless via oxipng
+- **Resize**: Supported (Lanczos3 filter, applied before compression)
 - **Metadata**: Delegated to oxipng's `StripChunks`
 - **Dependencies**: `image`, `imagequant`, `lodepng`, `oxipng`
 - **Typical reduction**: 50-90%
@@ -122,6 +123,7 @@ image_preparer extract <input> <output> [options]
 
 ### ✅ WebP (`src/processor/webp.rs`)
 - **Compression**: Lossy/Lossless via webp crate
+- **Resize**: Supported (Lanczos3 filter, applied before encoding)
 - **Metadata**: Custom RIFF chunk filtering (EXIF, XMP, ICCP)
 - **StripMode mapping**:
   - `All`: Keep only VP8/VP8L/ALPH
@@ -131,12 +133,13 @@ image_preparer extract <input> <output> [options]
 - **Typical reduction**: 40-80%
 - **Commands**: compress, convert, inspect
 
-### ✅ JPEG (`src/converter.rs`)
-- **Compression**: Via image crate JPEG encoder
+### ✅ JPEG (`src/processor/jpg.rs`)
+- **Compression**: Re-encode via image crate JPEG encoder with quality/resize
 - **Conversion**: Supported as target/source format
+- **Resize**: Supported (Lanczos3 filter)
 - **Note**: No alpha channel support (converts to RGB)
 - **Quality**: Configurable 0-100
-- **Commands**: convert only
+- **Commands**: compress, convert, inspect
 
 ### ✅ MP3 (`src/processor/mp3.rs`)
 - **Compression**: N/A (already compressed)
@@ -217,6 +220,8 @@ compress [OPTIONS] <INPUT> [OUTPUT]
   -r, --recursive
   --backup
   --dry-run
+  --width <pixels>           # Resize width (preserves aspect ratio if height omitted)
+  --height <pixels>          # Resize height (preserves aspect ratio if width omitted)
 
 convert [OPTIONS] --to <format> <INPUT> [OUTPUT]
   -t, --to <png|jpg|webp>    # Required
@@ -342,7 +347,6 @@ The `inspect` command provides detailed format-specific metadata viewing:
 ## Future Improvements
 
 ### Planned
-- [ ] JPEG compression (not just conversion)
 - [ ] HEIC/HEIF support
 - [ ] GIF optimization
 - [ ] Streaming processing for large files

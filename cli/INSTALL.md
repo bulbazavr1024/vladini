@@ -148,6 +148,9 @@ image_preparer inspect ~/Videos/video.mp4
 # Extract
 image_preparer extract ~/Videos/movie.mp4 ~/Desktop/frames/
 
+# Resize and compress
+image_preparer compress ~/Pictures/photo.png --width 1200 -q 85
+
 # Batch process
 cd ~/Pictures
 image_preparer compress . -r -q 85

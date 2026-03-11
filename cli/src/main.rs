@@ -38,8 +38,10 @@ fn main() -> Result<()> {
             recursive,
             backup,
             dry_run,
+            width,
+            height,
         } => {
-            let config = cli.to_config(*quality, *speed, *no_lossy, *strip, *dry_run, *backup);
+            let config = cli.to_config(*quality, *speed, *no_lossy, *strip, *dry_run, *backup, *width, *height);
             handle_compress(input, output.as_deref(), *recursive, &config)
         }
         Command::Convert {
@@ -60,6 +62,8 @@ fn main() -> Result<()> {
                 backup: *backup,
                 extract_frames: false,
                 fps: 0.0,
+                resize_width: None,
+                resize_height: None,
             };
             handle_convert(input, output.as_deref(), to, *recursive, &config)
         }

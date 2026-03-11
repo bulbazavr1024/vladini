@@ -53,6 +53,14 @@ pub enum Command {
         /// Show what would be done without writing files
         #[arg(long)]
         dry_run: bool,
+
+        /// Resize width in pixels (preserves aspect ratio if height is omitted)
+        #[arg(long)]
+        width: Option<u32>,
+
+        /// Resize height in pixels (preserves aspect ratio if width is omitted)
+        #[arg(long)]
+        height: Option<u32>,
     },
 
     /// Convert images between formats (PNG, JPG, WebP)
@@ -109,7 +117,17 @@ pub enum Command {
 }
 
 impl Cli {
-    pub fn to_config(&self, cmd_quality: u8, cmd_speed: i32, cmd_no_lossy: bool, cmd_strip: StripMode, cmd_dry_run: bool, cmd_backup: bool) -> ProcessingConfig {
+    pub fn to_config(
+        &self,
+        cmd_quality: u8,
+        cmd_speed: i32,
+        cmd_no_lossy: bool,
+        cmd_strip: StripMode,
+        cmd_dry_run: bool,
+        cmd_backup: bool,
+        cmd_resize_width: Option<u32>,
+        cmd_resize_height: Option<u32>,
+    ) -> ProcessingConfig {
         ProcessingConfig {
             quality: cmd_quality,
             speed: cmd_speed,
@@ -119,6 +137,8 @@ impl Cli {
             backup: cmd_backup,
             extract_frames: false,
             fps: 0.0,
+            resize_width: cmd_resize_width,
+            resize_height: cmd_resize_height,
         }
     }
 }

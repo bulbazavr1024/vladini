@@ -8,13 +8,14 @@ Command-line tool for compressing images/videos, converting between formats, and
 
 - ✅ **PNG** - Lossy/Lossless compression (50-90% reduction)
 - ✅ **WebP** - Lossy/Lossless compression (40-80% reduction)
-- ✅ **JPEG** - Format conversion support
+- ✅ **JPEG** - Compression + format conversion
 - ✅ **MP3** - Metadata stripping (ID3 tags)
 - ✅ **MP4** - Video compression (70-96% reduction) + Frame extraction
 - 🔄 **Format conversion** - PNG ↔ JPG ↔ WebP
 - 🚀 **Parallel processing** for batch operations
 - 📊 **Metadata inspection** without modification
 - 🎯 **Configurable quality/speed trade-offs**
+- 📐 **Image resizing** with aspect ratio preservation
 
 ## Installation
 
@@ -89,6 +90,18 @@ image_preparer compress video.mp4 -q 70
 
 # With output path
 image_preparer compress input.png output.png
+
+# Resize to 800px width (height auto-calculated)
+image_preparer compress photo.png --width 800
+
+# Resize to exact 1920x1080
+image_preparer compress photo.png --width 1920 --height 1080
+
+# Resize height only (width auto-calculated)
+image_preparer compress photo.png --height 600
+
+# Resize + compress entire directory
+image_preparer compress ./photos -r -q 85 --width 1200
 ```
 
 **Options:**
@@ -99,6 +112,8 @@ image_preparer compress input.png output.png
 - `-r, --recursive` - Process directories
 - `--backup` - Create .bak backups
 - `--dry-run` - Preview changes
+- `--width <pixels>` - Resize width (aspect ratio preserved if height omitted)
+- `--height <pixels>` - Resize height (aspect ratio preserved if width omitted)
 
 ### Convert Command
 
@@ -218,6 +233,9 @@ image_preparer extract video.mp4 ./output/ -f 0.5  # 1 frame every 2 seconds
 
 ```bash
 image_preparer compress ./photos -r -q 85 --strip all
+
+# Resize for web thumbnails
+image_preparer compress ./photos -r -q 80 --width 400 --height 300
 ```
 
 ### Compress videos for storage
@@ -277,7 +295,7 @@ Total: 52.3 MB → 8.1 MB (84.5% reduction)
 |--------|-----------|----------|---------|----------|---------|
 | PNG | `.png` | ✅ | ✅ | ✅ | - |
 | WebP | `.webp` | ✅ | ✅ | ✅ | - |
-| JPEG | `.jpg`, `.jpeg` | - | ✅ | - | - |
+| JPEG | `.jpg`, `.jpeg` | ✅ | ✅ | ✅ | - |
 | MP3 | `.mp3` | - | - | ✅ | - |
 | MP4 | `.mp4`, `.m4v`, `.m4a` | ✅ | - | ✅ | ✅ |
 

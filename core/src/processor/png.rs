@@ -3,7 +3,7 @@ use image::GenericImageView;
 use crate::config::{ProcessingConfig, StripMode};
 use crate::error::ProcessingError;
 use crate::format::ImageFormat;
-use crate::processor::ImageProcessor;
+use crate::processor::{ImageProcessor, maybe_resize};
 
 pub struct PngProcessor;
 
@@ -182,8 +182,15 @@ impl ImageProcessor for PngProcessor {
     }
 
     fn process(&self, input: &[u8], config: &ProcessingConfig) -> Result<Vec<u8>, ProcessingError> {
+        let needs_resize = config.resize_width.is_some() || config.resize_height.is_some();
+
         if config.no_lossy {
-            optimize_lossless(input, config)
+            if needs_resize {
+                let resized = resize_png(input, config)?;
+                optimize_lossless(&resized, config)
+            } else {
+                optimize_lossless(input, config)
+            }
         } else {
             let quantized = quantize_png(input, config)?;
             optimize_lossless(&quantized, config)
@@ -191,11 +198,28 @@ impl ImageProcessor for PngProcessor {
     }
 }
 
+/// Resize PNG without lossy quantization — decode, resize, re-encode as truecolor PNG
+fn resize_png(input: &[u8], config: &ProcessingConfig) -> Result<Vec<u8>, ProcessingError> {
+    let img = image::load_from_memory_with_format(input, image::ImageFormat::Png)
+        .map_err(|e| ProcessingError::Decode(e.to_string()))?;
+
+    let img = maybe_resize(img, config);
+
+    let mut buf = std::io::Cursor::new(Vec::new());
+    img.write_to(&mut buf, image::ImageFormat::Png)
+        .map_err(|e| ProcessingError::Encode(e.to_string()))?;
+
+    Ok(buf.into_inner())
+}
+
 /// Decode PNG -> quantize colors -> encode as indexed palette PNG
 fn quantize_png(input: &[u8], config: &ProcessingConfig) -> Result<Vec<u8>, ProcessingError> {
     // Step 1: Decode to RGBA pixels
     let img = image::load_from_memory_with_format(input, image::ImageFormat::Png)
         .map_err(|e| ProcessingError::Decode(e.to_string()))?;
+
+    // Resize if requested
+    let img = maybe_resize(img, config);
 
     let (width, height) = img.dimensions();
     let rgba = img.to_rgba8();

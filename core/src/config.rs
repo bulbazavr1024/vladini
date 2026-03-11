@@ -48,6 +48,10 @@ pub struct ProcessingConfig {
     pub extract_frames: bool,
     /// Frames per second to extract (0 = all frames)
     pub fps: f32,
+    /// Target width for resize (None = no resize)
+    pub resize_width: Option<u32>,
+    /// Target height for resize (None = no resize)
+    pub resize_height: Option<u32>,
 }
 
 impl Default for ProcessingConfig {
@@ -61,6 +65,8 @@ impl Default for ProcessingConfig {
             backup: false,
             extract_frames: false,
             fps: 1.0,
+            resize_width: None,
+            resize_height: None,
         }
     }
 }

@@ -3,7 +3,7 @@ use image::GenericImageView;
 use crate::config::{ProcessingConfig, StripMode};
 use crate::error::ProcessingError;
 use crate::format::ImageFormat;
-use crate::processor::ImageProcessor;
+use crate::processor::{ImageProcessor, maybe_resize};
 
 pub struct WebpProcessor;
 
@@ -168,6 +168,9 @@ impl ImageProcessor for WebpProcessor {
         // Decode WebP
         let img = image::load_from_memory_with_format(input, image::ImageFormat::WebP)
             .map_err(|e| ProcessingError::Decode(e.to_string()))?;
+
+        // Resize if requested
+        let img = maybe_resize(img, config);
 
         let (width, height) = img.dimensions();
         let rgba = img.to_rgba8();

@@ -6,7 +6,7 @@ use image::codecs::jpeg::JpegEncoder;
 use crate::config::ProcessingConfig;
 use crate::error::ProcessingError;
 use crate::format::ImageFormat;
-use crate::processor::ImageProcessor;
+use crate::processor::{ImageProcessor, maybe_resize};
 
 pub struct JpgProcessor;
 
@@ -18,6 +18,9 @@ impl ImageProcessor for JpgProcessor {
     fn process(&self, input: &[u8], config: &ProcessingConfig) -> Result<Vec<u8>, ProcessingError> {
         let img = image::load_from_memory_with_format(input, image::ImageFormat::Jpeg)
             .map_err(|e| ProcessingError::Decode(e.to_string()))?;
+
+        // Resize if requested
+        let img = maybe_resize(img, config);
 
         let rgb = img.to_rgb8();
         let (width, height) = img.dimensions();
