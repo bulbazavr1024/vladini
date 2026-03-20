@@ -104,7 +104,7 @@ pub enum Command {
 
     /// Extract frames from MP4 videos to PNG images
     Extract {
-        /// Input MP4 file
+        /// Input MP4 file or directory
         input: PathBuf,
 
         /// Output directory for frames
@@ -113,6 +113,10 @@ pub enum Command {
         /// Frames per second to extract (default: 1). Use 0 to extract all frames
         #[arg(long, short = 'f', default_value_t = 1.0)]
         fps: f32,
+
+        /// Process directories recursively
+        #[arg(short, long)]
+        recursive: bool,
     },
 }
 

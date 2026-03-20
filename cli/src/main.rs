@@ -70,8 +70,8 @@ fn main() -> Result<()> {
         Command::Inspect { input, recursive } => {
             handle_inspect(input, *recursive)
         }
-        Command::Extract { input, output, fps } => {
-            handle_extract(input, output, *fps)
+        Command::Extract { input, output, fps, recursive } => {
+            handle_extract(input, output, *fps, *recursive)
         }
     }
 }
@@ -339,20 +339,63 @@ fn handle_inspect(input: &Path, recursive: bool) -> Result<()> {
     Ok(())
 }
 
-fn handle_extract(input: &Path, output: &Path, fps: f32) -> Result<()> {
-    if !matches!(ImageFormat::from_path(input), Some(ImageFormat::Mp4)) {
-        anyhow::bail!("Frame extraction only supports MP4 files");
+fn handle_extract(input: &Path, output: &Path, fps: f32, recursive: bool) -> Result<()> {
+    // Collect MP4 files
+    let mp4_files = if input.is_file() {
+        if !matches!(ImageFormat::from_path(input), Some(ImageFormat::Mp4)) {
+            anyhow::bail!("Frame extraction only supports MP4 files");
+        }
+        vec![input.to_path_buf()]
+    } else if input.is_dir() {
+        let files = collect_files(input, recursive)
+            .context("Failed to collect input files")?;
+        let mp4s: Vec<_> = files
+            .into_iter()
+            .filter(|f| matches!(ImageFormat::from_path(f), Some(ImageFormat::Mp4)))
+            .collect();
+        if mp4s.is_empty() {
+            println!("No MP4 files found.");
+            return Ok(());
+        }
+        mp4s
+    } else {
+        anyhow::bail!("Input path does not exist: {}", input.display());
+    };
+
+    let total = mp4_files.len();
+    let mut total_frames = 0usize;
+    let mut errors = 0usize;
+
+    for (i, mp4_path) in mp4_files.iter().enumerate() {
+        println!(
+            "[{}/{}] Extracting frames from {} at {} fps...",
+            i + 1,
+            total,
+            mp4_path.display(),
+            fps
+        );
+        match extract_frames_to_png(mp4_path, output, fps) {
+            Ok(count) => {
+                println!("  ✓ Extracted {} frames", count);
+                total_frames += count;
+            }
+            Err(e) => {
+                log::error!("Error extracting {}: {}", mp4_path.display(), e);
+                eprintln!("  ✗ Error: {}", e);
+                errors += 1;
+            }
+        }
     }
 
-    println!("Extracting frames at {} fps...", fps);
+    println!("--- Summary ---");
+    println!(
+        "Videos: {} | Frames extracted: {} | Errors: {}",
+        total, total_frames, errors
+    );
 
-    match extract_frames_to_png(input, output, fps) {
-        Ok(count) => {
-            println!("✓ Extracted {} frames", count);
-            Ok(())
-        }
-        Err(e) => {
-            anyhow::bail!("Failed to extract frames: {}", e)
-        }
+    if errors > 0 && errors == total {
+        anyhow::bail!("All extractions failed");
     }
+
+    Ok(())
 }
