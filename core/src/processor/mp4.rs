@@ -250,10 +250,11 @@ fn is_ffmpeg_available() -> bool {
 fn compress_mp4_with_ffmpeg(input: &[u8], config: &ProcessingConfig, lossless: bool) -> Result<Vec<u8>, ProcessingError> {
     use std::io::Write;
 
-    // Create temporary files
+    // Create temporary files with unique names per invocation
     let temp_dir = std::env::temp_dir();
-    let input_path = temp_dir.join(format!("input_{}.mp4", std::process::id()));
-    let output_path = temp_dir.join(format!("output_{}.mp4", std::process::id()));
+    let unique_id = format!("{}_{:?}", std::process::id(), std::thread::current().id());
+    let input_path = temp_dir.join(format!("input_{}.mp4", unique_id));
+    let output_path = temp_dir.join(format!("output_{}.mp4", unique_id));
 
     // Write input to temp file
     let mut input_file = std::fs::File::create(&input_path)
