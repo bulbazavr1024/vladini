@@ -45,6 +45,7 @@ vladini/
 
 ```bash
 brew tap bulbazavr1024/vladini https://github.com/bulbazavr1024/vladini
+brew trust bulbazavr1024/vladini   # Homebrew asks to trust third-party taps once
 brew install vladini          # also installs ffmpeg
 brew upgrade vladini          # update to the latest release
 ```
