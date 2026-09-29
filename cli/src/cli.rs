@@ -6,7 +6,7 @@ use crate::config::{ProcessingConfig, StripMode};
 
 /// CLI tool for image/video compression, conversion, and metadata management
 #[derive(Debug, Parser)]
-#[command(name = "image_preparer", version, about)]
+#[command(name = "vladini", version, about)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Command,

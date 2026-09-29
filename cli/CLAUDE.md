@@ -1,11 +1,11 @@
-# Image Preparer - AI Context & Development Guide
+# Vladini - AI Context & Development Guide
 
 > **Purpose**: This file provides context for AI assistants working on this project.
 > **Last Updated**: 2026-09-29
 
 ## Project Overview
 
-**Image Preparer** is a workspace with a single member, the **CLI tool** (`cli/`): a command-line utility for local file processing. The crate is both a library and a binary.
+**Vladini** is a workspace with a single member, the **CLI tool** (`cli/`): a command-line utility for local file processing. The crate is both a library and a binary.
 
 - **Language**: Rust (Edition 2021)
 - **License**: GPL-3.0-or-later
@@ -15,7 +15,7 @@
 ## Workspace Structure
 
 ```
-image_preparer_workspace/          # Workspace root
+vladini/          # Workspace root
 ├── Cargo.toml                     # Workspace configuration (single member: cli)
 ├── README.md                      # Overall documentation
 │
@@ -37,7 +37,7 @@ image_preparer_workspace/          # Workspace root
     └── CLAUDE.md                 # This file
 ```
 
-**Critical Design**: The crate is both a library and a binary. Processing logic lives in the library (`src/lib.rs`); `src/main.rs` uses it as `image_preparer::...`, and library modules refer to each other as `crate::...`. There is no separate core crate.
+**Critical Design**: The crate is both a library and a binary. Processing logic lives in the library (`src/lib.rs`); `src/main.rs` uses it as `vladini::...`, and library modules refer to each other as `crate::...`. There is no separate core crate.
 
 ## Architecture
 
@@ -87,16 +87,16 @@ pub enum Command {
 
 ```bash
 # Compress images/videos
-image_preparer compress <input> [output] [options]
+vladini compress <input> [output] [options]
 
 # Convert between formats
-image_preparer convert <input> [output] [--to <format>] [options]
+vladini convert <input> [output] [--to <format>] [options]
 
 # Inspect metadata
-image_preparer inspect <input> [options]
+vladini inspect <input> [options]
 
 # Extract video frames
-image_preparer extract <input> <output> [options]
+vladini extract <input> <output> [options]
 ```
 
 ## Supported Formats
@@ -340,7 +340,7 @@ Different formats interpret `StripMode` differently:
 
 ### 🚫 CLI Structure Changes
 - **Problem**: Old flat CLI vs new subcommand structure
-- **Solution**: Always use subcommands: `image_preparer compress` not `image_preparer`
+- **Solution**: Always use subcommands: `vladini compress` not `vladini`
 - **Migration**: Update docs and examples when changing CLI
 
 ### 🚫 Path Type Mismatches
@@ -441,7 +441,7 @@ mp4 = "0.14"            # MP4 container parsing
 
 ```bash
 # Build CLI (from workspace root)
-cargo build --release --bin image_preparer
+cargo build --release --bin vladini
 
 # Build CLI (from cli directory)
 cd cli
@@ -459,16 +459,16 @@ cargo install --path cli --force  # From workspace root
 cargo install --path . --force     # From cli directory
 
 # Run CLI
-image_preparer compress photo.png -q 80
-image_preparer convert image.png --to jpg
-image_preparer convert clip.webm clip.mp3
-image_preparer inspect file.mp4
-image_preparer extract video.mp4 ./frames/
+vladini compress photo.png -q 80
+vladini convert image.png --to jpg
+vladini convert clip.webm clip.mp3
+vladini inspect file.mp4
+vladini extract video.mp4 ./frames/
 
 # Help
-image_preparer --help
-image_preparer compress --help
-image_preparer convert --help
+vladini --help
+vladini compress --help
+vladini convert --help
 ```
 
 ## Notes for AI Assistants
@@ -486,17 +486,17 @@ image_preparer convert --help
 
 **Old (deprecated)**:
 ```bash
-image_preparer file.png --convert-to jpg
-image_preparer file.png --extract-frames
-image_preparer file.png --inspect
+vladini file.png --convert-to jpg
+vladini file.png --extract-frames
+vladini file.png --inspect
 ```
 
 **New (current)**:
 ```bash
-image_preparer convert file.png --to jpg
-image_preparer extract file.mp4 ./frames/
-image_preparer inspect file.png
-image_preparer compress file.png -q 80
+vladini convert file.png --to jpg
+vladini extract file.mp4 ./frames/
+vladini inspect file.png
+vladini compress file.png -q 80
 ```
 
 ## Library Structure
@@ -509,7 +509,7 @@ The CLI exports its functionality via `src/lib.rs`:
 - `format::ImageFormat` - Format detection
 - `error::ProcessingError` - Error types
 
-`src/main.rs` imports these as `image_preparer::...`; inside the library use `crate::...`.
+`src/main.rs` imports these as `vladini::...`; inside the library use `crate::...`.
 
 ## Contact & Resources
 

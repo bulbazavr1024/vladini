@@ -1,16 +1,16 @@
 [package]
-name = "image_preparer"
-version = "0.1.0"
+name = "vladini"
+version = "0.2.0"
 edition = "2021"
 description = "CLI tool for compression, format conversion, and metadata stripping of images, audio, and video files"
 license = "GPL-3.0-or-later"
 
 [lib]
-name = "image_preparer"
+name = "vladini"
 path = "src/lib.rs"
 
 [[bin]]
-name = "image_preparer"
+name = "vladini"
 path = "src/main.rs"
 
 [dependencies]

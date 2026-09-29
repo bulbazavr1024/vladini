@@ -279,7 +279,7 @@ mod tests {
             eprintln!("skipped: ffmpeg not installed");
             return;
         }
-        let dir = std::env::temp_dir().join(format!("image_preparer_convert_{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("vladini_convert_{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let webm = dir.join("in.webm");
         // Clip with both video and audio, so the mp3 target has to drop the video stream
@@ -322,7 +322,7 @@ mod tests {
             eprintln!("skipped: ffmpeg not installed");
             return;
         }
-        let dir = std::env::temp_dir().join(format!("image_preparer_inflate_{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("vladini_inflate_{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         // Typical YouTube-style audio webm: opus well below the default mp3 bitrate
         let webm = dir.join("talk.webm");
@@ -358,7 +358,7 @@ mod tests {
             eprintln!("skipped: ffmpeg not installed");
             return;
         }
-        let dir = std::env::temp_dir().join(format!("image_preparer_options_{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("vladini_options_{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let src = dir.join("src.mkv");
         let status = Command::new("ffmpeg")

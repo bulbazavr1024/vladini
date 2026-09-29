@@ -7,19 +7,19 @@ use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 
-use image_preparer::cli::{Cli, Command};
-use image_preparer::io::{collect_files, collect_files_matching, create_backup, read_file, resolve_output, write_file};
-use image_preparer::report::{FileResult, Report};
-use image_preparer::config::{ProcessingConfig, StripMode};
-use image_preparer::converter::{AUDIO_EXTENSIONS, ConvertFormat, MEDIA_EXTENSIONS, convert_image, convert_media};
-use image_preparer::format::ImageFormat;
-use image_preparer::pipeline::Pipeline;
-use image_preparer::processor::png::{PngProcessor, inspect_png};
-use image_preparer::processor::jpg::{JpgProcessor, inspect_jpg};
-use image_preparer::processor::mp3::{Mp3Processor, inspect_mp3};
-use image_preparer::processor::wav::{WavProcessor, inspect_wav};
-use image_preparer::processor::webp::{WebpProcessor, inspect_webp};
-use image_preparer::processor::mp4::{Mp4Processor, inspect_mp4, extract_frames_to_png};
+use vladini::cli::{Cli, Command};
+use vladini::io::{collect_files, collect_files_matching, create_backup, read_file, resolve_output, write_file};
+use vladini::report::{FileResult, Report};
+use vladini::config::{ProcessingConfig, StripMode};
+use vladini::converter::{AUDIO_EXTENSIONS, ConvertFormat, MEDIA_EXTENSIONS, convert_image, convert_media};
+use vladini::format::ImageFormat;
+use vladini::pipeline::Pipeline;
+use vladini::processor::png::{PngProcessor, inspect_png};
+use vladini::processor::jpg::{JpgProcessor, inspect_jpg};
+use vladini::processor::mp3::{Mp3Processor, inspect_mp3};
+use vladini::processor::wav::{WavProcessor, inspect_wav};
+use vladini::processor::webp::{WebpProcessor, inspect_webp};
+use vladini::processor::mp4::{Mp4Processor, inspect_mp4, extract_frames_to_png};
 
 fn main() -> Result<()> {
     let cli = Cli::parse();

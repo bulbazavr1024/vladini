@@ -1,7 +1,6 @@
 # Rust
 /target/
 /cli/target/
-Cargo.lock
 
 # IDE
 .vscode/

@@ -1,0 +1,66 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14 # Apple Silicon (arm64)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check tag matches Cargo version
+        run: grep -qx "version = \"${GITHUB_REF_NAME#v}\"" cli/Cargo.toml
+
+      - name: Test
+        run: |
+          brew install ffmpeg
+          cargo test --locked
+
+      - name: Build
+        run: cargo build --release --locked
+
+      - name: Package
+        run: tar -czf vladini-macos-arm64.tar.gz -C target/release vladini
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" vladini-macos-arm64.tar.gz --generate-notes
+
+      - name: Update Homebrew formula
+        run: |
+          sha=$(shasum -a 256 vladini-macos-arm64.tar.gz | cut -d' ' -f1)
+          git fetch origin main
+          git checkout -B main FETCH_HEAD
+          mkdir -p Formula
+          cat > Formula/vladini.rb <<EOF
+          class Vladini < Formula
+            desc "Compress, convert and strip metadata of images, audio and video"
+            homepage "https://github.com/${GITHUB_REPOSITORY}"
+            url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/vladini-macos-arm64.tar.gz"
+            version "${GITHUB_REF_NAME#v}"
+            sha256 "${sha}"
+
+            depends_on arch: :arm64
+            depends_on :macos
+            depends_on "ffmpeg"
+
+            def install
+              bin.install "vladini"
+            end
+
+            test do
+              assert_match version.to_s, shell_output("#{bin}/vladini --version")
+            end
+          end
+          EOF
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/vladini.rb
+          git commit -m "vladini ${GITHUB_REF_NAME#v}"
+          git push origin main

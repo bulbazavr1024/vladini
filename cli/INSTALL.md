@@ -1,30 +1,40 @@
 # Installation Guide
 
-> **Note**: This is the CLI tool from the Image Preparer workspace. For workspace documentation, see `../README.md`.
+> **Note**: This is the CLI tool from the Vladini workspace. For workspace documentation, see `../README.md`.
 
 ## Quick Install (Recommended) ✅
+
+macOS on Apple Silicon, prebuilt binary via Homebrew:
+
+```bash
+brew tap bulbazavr1024/vladini https://github.com/bulbazavr1024/vladini
+brew install vladini          # also installs ffmpeg
+brew upgrade vladini          # update to the latest release
+```
+
+## Install From Source
 
 Install the binary globally to `~/.cargo/bin/`:
 
 **From workspace root:**
 ```bash
-cd /path/to/image_preparer_workspace
+cd /path/to/vladini
 cargo install --path cli
 ```
 
 **Or from CLI directory:**
 ```bash
-cd /path/to/image_preparer_workspace/cli
+cd /path/to/vladini/cli
 cargo install --path .
 ```
 
 You can now use it from anywhere:
 
 ```bash
-image_preparer compress photo.png -q 80
-image_preparer convert image.png --to jpg
-image_preparer inspect video.mp4
-image_preparer extract video.mp4 ./frames/
+vladini compress photo.png -q 80
+vladini convert image.png --to jpg
+vladini inspect video.mp4
+vladini extract video.mp4 ./frames/
 ```
 
 ## Installation Methods
@@ -35,13 +45,13 @@ This installs the binary to `~/.cargo/bin/` which is already in your PATH.
 
 **From workspace root:**
 ```bash
-cd /path/to/image_preparer_workspace
+cd /path/to/vladini
 cargo install --path cli
 ```
 
 **From CLI directory:**
 ```bash
-cd /path/to/image_preparer_workspace/cli
+cd /path/to/vladini/cli
 cargo install --path .
 ```
 
@@ -54,7 +64,7 @@ cargo install --path . --force     # From cli directory
 
 **To uninstall:**
 ```bash
-cargo uninstall image_preparer
+cargo uninstall vladini
 ```
 
 **Benefits:**
@@ -69,24 +79,24 @@ Copy to `/usr/local/bin/` (requires sudo):
 
 ```bash
 # From workspace root
-cargo build --release --bin image_preparer
-sudo cp target/release/image_preparer /usr/local/bin/
+cargo build --release --bin vladini
+sudo cp target/release/vladini /usr/local/bin/
 
 # OR from cli directory
 cd cli
 cargo build --release
-sudo cp target/release/image_preparer /usr/local/bin/
+sudo cp target/release/vladini /usr/local/bin/
 ```
 
 **To update:**
 ```bash
-cargo build --release --bin image_preparer
-sudo cp target/release/image_preparer /usr/local/bin/
+cargo build --release --bin vladini
+sudo cp target/release/vladini /usr/local/bin/
 ```
 
 **To uninstall:**
 ```bash
-sudo rm /usr/local/bin/image_preparer
+sudo rm /usr/local/bin/vladini
 ```
 
 ### Method 3: Shell Alias
@@ -95,11 +105,11 @@ Add to `~/.zshrc` (or `~/.bashrc` for bash):
 
 ```bash
 # Update path to match your workspace location
-echo 'alias image_preparer="$HOME/path/to/image_preparer_workspace/target/release/image_preparer"' >> ~/.zshrc
+echo 'alias vladini="$HOME/path/to/vladini/target/release/vladini"' >> ~/.zshrc
 source ~/.zshrc
 ```
 
-**To update:** Just rebuild with `cargo build --release --bin image_preparer` from workspace root
+**To update:** Just rebuild with `cargo build --release --bin vladini` from workspace root
 
 **To uninstall:** Remove the line from `~/.zshrc`
 
@@ -108,26 +118,26 @@ source ~/.zshrc
 Create a symbolic link (good for development):
 
 ```bash
-ln -s ~/path/to/project/target/release/image_preparer /usr/local/bin/image_preparer
+ln -s ~/path/to/project/target/release/vladini /usr/local/bin/vladini
 ```
 
 **Benefits**: Updates automatically when you rebuild
 
 **To uninstall:**
 ```bash
-rm /usr/local/bin/image_preparer
+rm /usr/local/bin/vladini
 ```
 
 ## Verify Installation
 
 ```bash
-which image_preparer
-# Output: /Users/username/.cargo/bin/image_preparer
+which vladini
+# Output: /Users/username/.cargo/bin/vladini
 
-image_preparer --version
-# Output: image_preparer 0.1.0
+vladini --version
+# Output: vladini 0.1.0
 
-image_preparer --help
+vladini --help
 # Shows all commands
 ```
 
@@ -137,26 +147,26 @@ Now you can use it from anywhere:
 
 ```bash
 # Compress
-image_preparer compress ~/Pictures/photo.png -q 80
+vladini compress ~/Pictures/photo.png -q 80
 
 # Convert
-image_preparer convert ~/Pictures/photo.png --to webp
+vladini convert ~/Pictures/photo.png --to webp
 
 # Convert audio/video (requires ffmpeg)
-image_preparer convert ~/Videos/clip.webm --to mp3
+vladini convert ~/Videos/clip.webm --to mp3
 
 # Inspect
-image_preparer inspect ~/Videos/video.mp4
+vladini inspect ~/Videos/video.mp4
 
 # Extract
-image_preparer extract ~/Videos/movie.mp4 ~/Desktop/frames/
+vladini extract ~/Videos/movie.mp4 ~/Desktop/frames/
 
 # Resize and compress
-image_preparer compress ~/Pictures/photo.png --width 1200 -q 85
+vladini compress ~/Pictures/photo.png --width 1200 -q 85
 
 # Batch process
 cd ~/Pictures
-image_preparer compress . -r -q 85
+vladini compress . -r -q 85
 ```
 
 ## System Requirements
@@ -187,7 +197,7 @@ image_preparer compress . -r -q 85
 
 ### Command not found
 
-If `image_preparer` is not found, check your PATH:
+If `vladini` is not found, check your PATH:
 
 ```bash
 echo $PATH | grep -o "[^:]*cargo[^:]*"
@@ -207,7 +217,7 @@ source ~/.zshrc  # or source ~/.bashrc
 If you get permission errors:
 
 ```bash
-chmod +x ~/.cargo/bin/image_preparer
+chmod +x ~/.cargo/bin/vladini
 ```
 
 ### Old version running
@@ -216,7 +226,7 @@ After rebuilding, make sure the new version is installed:
 
 ```bash
 cargo install --path . --force
-image_preparer --version
+vladini --version
 ```
 
 ### ffmpeg not found
@@ -241,7 +251,7 @@ Use symlink or alias methods so changes apply immediately after `cargo build --r
 **Recommended:**
 ```bash
 # Create symlink
-ln -s $(pwd)/target/release/image_preparer /usr/local/bin/image_preparer
+ln -s $(pwd)/target/release/vladini /usr/local/bin/vladini
 
 # Now rebuild updates automatically
 cargo build --release
@@ -280,19 +290,19 @@ cargo install --path . --force
 ### If installed via cargo
 
 ```bash
-cargo uninstall image_preparer
+cargo uninstall vladini
 ```
 
 ### If installed to /usr/local/bin
 
 ```bash
-sudo rm /usr/local/bin/image_preparer
+sudo rm /usr/local/bin/vladini
 ```
 
 ### If using symlink
 
 ```bash
-rm /usr/local/bin/image_preparer
+rm /usr/local/bin/vladini
 ```
 
 ### If using alias
@@ -309,21 +319,21 @@ cargo install --path .
 cargo install --path . --force
 
 # Uninstall
-cargo uninstall image_preparer
+cargo uninstall vladini
 
 # Verify
-which image_preparer
-image_preparer --version
+which vladini
+vladini --version
 
 # Use
-image_preparer compress photo.png -q 80
-image_preparer convert image.png --to jpg
-image_preparer inspect file.mp4
-image_preparer extract video.mp4 ./frames/
+vladini compress photo.png -q 80
+vladini convert image.png --to jpg
+vladini inspect file.mp4
+vladini extract video.mp4 ./frames/
 ```
 
 ---
 
-✅ **You're all set!** Use `image_preparer` from anywhere in your terminal.
+✅ **You're all set!** Use `vladini` from anywhere in your terminal.
 
 For usage examples, see [README.md](./README.md).

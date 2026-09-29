@@ -1,8 +1,8 @@
-# Image Preparer CLI
+# Vladini CLI
 
 Command-line tool for compressing images/videos, converting between formats, and stripping metadata.
 
-> **Note**: This is part of the Image Preparer workspace. For workspace documentation, see `../README.md`.
+> **Note**: This is part of the Vladini workspace. For workspace documentation, see `../README.md`.
 
 ## Features
 
@@ -32,7 +32,7 @@ cd cli
 cargo install --path .
 ```
 
-This installs `image_preparer` to `~/.cargo/bin/` (already in PATH).
+This installs `vladini` to `~/.cargo/bin/` (already in PATH).
 
 ### Prerequisites
 
@@ -65,43 +65,43 @@ Compress images and videos with configurable quality.
 
 ```bash
 # Compress single file
-image_preparer compress photo.png -q 80
+vladini compress photo.png -q 80
 
 # Compress with high quality
-image_preparer compress photo.png -q 90
+vladini compress photo.png -q 90
 
 # Fast compression (lower quality)
-image_preparer compress photo.png -q 50 -s 10
+vladini compress photo.png -q 50 -s 10
 
 # Lossless optimization only
-image_preparer compress photo.png --no-lossy
+vladini compress photo.png --no-lossy
 
 # Process entire directory
-image_preparer compress ./photos -r
+vladini compress ./photos -r
 
 # Strip all metadata
-image_preparer compress photo.png --strip all
+vladini compress photo.png --strip all
 
 # Keep safe metadata
-image_preparer compress song.mp3 --strip safe
+vladini compress song.mp3 --strip safe
 
 # Compress video
-image_preparer compress video.mp4 -q 70
+vladini compress video.mp4 -q 70
 
 # With output path
-image_preparer compress input.png output.png
+vladini compress input.png output.png
 
 # Resize to 800px width (height auto-calculated)
-image_preparer compress photo.png --width 800
+vladini compress photo.png --width 800
 
 # Resize to exact 1920x1080
-image_preparer compress photo.png --width 1920 --height 1080
+vladini compress photo.png --width 1920 --height 1080
 
 # Resize height only (width auto-calculated)
-image_preparer compress photo.png --height 600
+vladini compress photo.png --height 600
 
 # Resize + compress entire directory
-image_preparer compress ./photos -r -q 85 --width 1200
+vladini compress ./photos -r -q 85 --width 1200
 ```
 
 **Options:**
@@ -121,46 +121,46 @@ Convert images between PNG, JPG, and WebP formats, or convert audio/video to any
 
 ```bash
 # Convert PNG to JPG
-image_preparer convert photo.png photo.jpg --to jpg
+vladini convert photo.png photo.jpg --to jpg
 
 # Target format is taken from the output extension when --to is omitted
-image_preparer convert clip.webm clip.mp3
+vladini convert clip.webm clip.mp3
 
 # Convert with specific quality
-image_preparer convert image.png image.jpg --to jpg -q 90
+vladini convert image.png image.jpg --to jpg -q 90
 
 # Convert PNG to WebP (lossy)
-image_preparer convert photo.png photo.webp --to webp -q 80
+vladini convert photo.png photo.webp --to webp -q 80
 
 # Convert PNG to WebP (lossless)
-image_preparer convert photo.png photo.webp --to webp --no-lossy
+vladini convert photo.png photo.webp --to webp --no-lossy
 
 # Convert JPG to PNG
-image_preparer convert photo.jpg photo.png --to png
+vladini convert photo.jpg photo.png --to png
 
 # Batch convert directory
-image_preparer convert ./photos ./output --to webp -r
+vladini convert ./photos ./output --to webp -r
 
 # Photos folder to WebP, resized to 1600px width
-image_preparer convert ./photos ./out --to webp --width 1600
+vladini convert ./photos ./out --to webp --width 1600
 
 # Extract audio from a video
-image_preparer convert clip.webm --to mp3
+vladini convert clip.webm --to mp3
 
 # Folder of FLAC to MP3 at 192 kbps, output into ./out
-image_preparer convert ./music ./out --to mp3 -b 192k
+vladini convert ./music ./out --to mp3 -b 192k
 
 # Cut a fragment (1:30 to 2:45 of the source) to MP3
-image_preparer convert talk.mp4 fragment.mp3 --start 1:30 --end 2:45
+vladini convert talk.mp4 fragment.mp3 --start 1:30 --end 2:45
 
 # Video to GIF, 480px wide, seconds 5-8
-image_preparer convert clip.mp4 clip.gif --width 480 --start 5 --end 8
+vladini convert clip.mp4 clip.gif --width 480 --start 5 --end 8
 
 # Convert video to MP4 with output path
-image_preparer convert video.mkv out.mp4 --to mp4
+vladini convert video.mkv out.mp4 --to mp4
 
 # Folder of videos, at most 2 files at a time
-image_preparer convert ./videos ./out --to webm -j 2
+vladini convert ./videos ./out --to webm -j 2
 ```
 
 **Options:**
@@ -209,16 +209,16 @@ Display detailed file metadata without processing.
 
 ```bash
 # Inspect single file
-image_preparer inspect photo.png
+vladini inspect photo.png
 
 # Inspect video
-image_preparer inspect video.mp4
+vladini inspect video.mp4
 
 # Inspect MP3 tags
-image_preparer inspect song.mp3
+vladini inspect song.mp3
 
 # Inspect entire directory
-image_preparer inspect ./photos -r
+vladini inspect ./photos -r
 ```
 
 **Shows:**
@@ -233,16 +233,16 @@ Extract frames from MP4 videos to PNG images.
 
 ```bash
 # Extract 1 frame per second (default)
-image_preparer extract video.mp4 ./frames/
+vladini extract video.mp4 ./frames/
 
 # Extract 2 frames per second
-image_preparer extract video.mp4 ./frames/ -f 2
+vladini extract video.mp4 ./frames/ -f 2
 
 # Extract all frames
-image_preparer extract video.mp4 ./frames/ -f 0
+vladini extract video.mp4 ./frames/ -f 0
 
 # Extract specific rate
-image_preparer extract video.mp4 ./output/ -f 0.5  # 1 frame every 2 seconds
+vladini extract video.mp4 ./output/ -f 0.5  # 1 frame every 2 seconds
 ```
 
 **Output:**
@@ -281,59 +281,59 @@ image_preparer extract video.mp4 ./output/ -f 0.5  # 1 frame every 2 seconds
 ### Optimize photos for web
 
 ```bash
-image_preparer compress ./photos -r -q 85 --strip all
+vladini compress ./photos -r -q 85 --strip all
 
 # Resize for web thumbnails
-image_preparer compress ./photos -r -q 80 --width 400 --height 300
+vladini compress ./photos -r -q 80 --width 400 --height 300
 ```
 
 ### Compress videos for storage
 
 ```bash
-image_preparer compress ./videos -r -q 70 -s 3
+vladini compress ./videos -r -q 70 -s 3
 ```
 
 ### Convert images to WebP
 
 ```bash
-image_preparer convert ./photos ./output --to webp -r -q 80
+vladini convert ./photos ./output --to webp -r -q 80
 
 # Resize to 1600px width while converting
-image_preparer convert ./photos ./out --to webp --width 1600
+vladini convert ./photos ./out --to webp --width 1600
 ```
 
 ### Convert audio and video
 
 ```bash
 # webm to mp3
-image_preparer convert clip.webm --to mp3
+vladini convert clip.webm --to mp3
 
 # Folder of FLAC to MP3 at 192k into ./out
-image_preparer convert ./music ./out --to mp3 -b 192k
+vladini convert ./music ./out --to mp3 -b 192k
 
 # Cut a fragment to mp3
-image_preparer convert talk.mp4 fragment.mp3 --start 1:30 --end 2:45
+vladini convert talk.mp4 fragment.mp3 --start 1:30 --end 2:45
 
 # Video to GIF
-image_preparer convert clip.mp4 clip.gif --width 480 --start 5 --end 8
+vladini convert clip.mp4 clip.gif --width 480 --start 5 --end 8
 ```
 
 ### Create video thumbnails
 
 ```bash
-image_preparer extract video.mp4 ./thumbs/ -f 0.2
+vladini extract video.mp4 ./thumbs/ -f 0.2
 ```
 
 ### Strip sensitive metadata
 
 ```bash
-image_preparer compress ./music -r --strip all --no-lossy
+vladini compress ./music -r --strip all --no-lossy
 ```
 
 ### Batch convert PNG to JPG
 
 ```bash
-image_preparer convert ./images ./output --to jpg -r -q 85
+vladini convert ./images ./output --to jpg -r -q 85
 ```
 
 ## Global Options
@@ -382,7 +382,7 @@ Total: 52.3 MB → 8.1 MB (84.5% reduction)
 
 ### Command not found
 
-If `image_preparer` is not found after install:
+If `vladini` is not found after install:
 
 ```bash
 # Check PATH

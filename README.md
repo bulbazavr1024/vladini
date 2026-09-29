@@ -1,11 +1,11 @@
-# Image Preparer Workspace
+# Vladini Workspace
 
 A Rust workspace containing a command-line utility for image/video/audio processing.
 
 ## Project Structure
 
 ```
-image_preparer_workspace/
+vladini/
 ├── Cargo.toml          # Workspace configuration
 ├── README.md           # This file
 └── cli/                # CLI tool (binary + library)
@@ -41,18 +41,24 @@ image_preparer_workspace/
 
 ## Quick Start
 
-### CLI Tool
+### Install (macOS, Apple Silicon)
 
 ```bash
-# Install globally
-cargo install --path cli
+brew tap bulbazavr1024/vladini https://github.com/bulbazavr1024/vladini
+brew install vladini          # also installs ffmpeg
+brew upgrade vladini          # update to the latest release
+```
 
-# Use from anywhere
-image_preparer compress photo.png -q 80
-image_preparer convert image.png --to webp
-image_preparer convert clip.webm clip.mp3
-image_preparer inspect video.mp4
-image_preparer extract video.mp4 ./frames/
+From source instead: `cargo install --path cli`.
+
+### Usage
+
+```bash
+vladini compress photo.png -q 80
+vladini convert image.png --to webp
+vladini convert clip.webm clip.mp3
+vladini inspect video.mp4
+vladini extract video.mp4 ./frames/
 ```
 
 See [CLI README](cli/README.md) for complete documentation.
@@ -80,9 +86,9 @@ cargo test
 The workspace has a single member, the `cli` crate, which is both a library and a binary:
 
 ```
-CLI (image_preparer)
+CLI (vladini)
 ├── Library: src/lib.rs   (pipeline, processors, converter, config)
-└── Binary: src/main.rs   (uses the library as image_preparer::...)
+└── Binary: src/main.rs   (uses the library as vladini::...)
 ```
 
 ### Library Components
@@ -130,17 +136,17 @@ See [CLAUDE.md](cli/CLAUDE.md) for detailed development guide.
 
 ```bash
 # Compress all PNGs in a directory
-image_preparer compress ./photos/ ./optimized/ -q 85 -r
+vladini compress ./photos/ ./optimized/ -q 85 -r
 
 # Resize and compress for web
-image_preparer compress ./photos/ -r -q 80 --width 1200
+vladini compress ./photos/ -r -q 80 --width 1200
 
 # Resize to exact dimensions
-image_preparer compress photo.png --width 800 --height 600
+vladini compress photo.png --width 800 --height 600
 
 # Convert all JPGs to WebP
 for f in *.jpg; do
-  image_preparer convert "$f" --to webp
+  vladini convert "$f" --to webp
 done
 ```
 
@@ -148,32 +154,32 @@ done
 
 ```bash
 # Compress video with high quality
-image_preparer compress video.mp4 output.mp4 -q 90 -s 2
+vladini compress video.mp4 output.mp4 -q 90 -s 2
 
 # Extract frames (1 per second)
-image_preparer extract video.mp4 ./frames/ --fps 1
+vladini extract video.mp4 ./frames/ --fps 1
 
 # Extract all frames
-image_preparer extract video.mp4 ./frames/ --fps 0
+vladini extract video.mp4 ./frames/ --fps 0
 ```
 
 ### Audio/Video Conversion
 
 ```bash
 # Extract audio from a video (format from the output extension)
-image_preparer convert clip.webm clip.mp3
+vladini convert clip.webm clip.mp3
 
 # Folder of FLAC to MP3 at 192 kbps
-image_preparer convert ./music ./out --to mp3 -b 192k
+vladini convert ./music ./out --to mp3 -b 192k
 
 # Cut a fragment to MP3
-image_preparer convert talk.mp4 fragment.mp3 --start 1:30 --end 2:45
+vladini convert talk.mp4 fragment.mp3 --start 1:30 --end 2:45
 
 # Video to GIF
-image_preparer convert clip.mp4 clip.gif --width 480 --start 5 --end 8
+vladini convert clip.mp4 clip.gif --width 480 --start 5 --end 8
 
 # Photos folder to WebP at 1600px width
-image_preparer convert ./photos ./out --to webp --width 1600
+vladini convert ./photos ./out --to webp --width 1600
 ```
 
 ## Performance
@@ -191,6 +197,18 @@ Typical size reductions:
 - **Images**: 1-10 images/second (depends on size and quality)
 - **Videos**: Slower than real-time (depends on resolution and speed preset)
 - **Parallel processing**: Scales with CPU cores
+
+## Releasing
+
+Bump `version` in `cli/Cargo.toml`, commit, then push a matching tag:
+
+```bash
+git tag v0.2.1 && git push origin main v0.2.1
+```
+
+GitHub Actions (`.github/workflows/release.yml`) builds the arm64 binary, attaches it to a GitHub Release
+and commits the updated Homebrew formula (`Formula/vladini.rb`) to `main` — run `git pull` afterwards.
+Installed copies pick it up with `brew upgrade vladini`.
 
 ## License
 
@@ -234,9 +252,11 @@ This is a personal project, but suggestions are welcome.
 
 ## Changelog
 
-### Unreleased
+### v0.2.0 (2026-09-29)
+- Renamed the tool to `vladini`
+- Homebrew install/upgrade from GitHub Releases built by CI
 - Removed the HTTP server (`server/` crate and API); the project is now CLI-only
-- Merged the `core` crate into `cli` (single workspace member, code imports `image_preparer::...`)
+- Merged the `core` crate into `cli` (single workspace member, code imports `vladini::...`)
 - `convert` now handles audio/video via ffmpeg (e.g. `convert clip.webm clip.mp3`); `--to` is optional and defaults to the output file's extension
 - `convert` options: `--strip` (default `none`, tags kept), `-b/--bitrate`, `--width/--height`, `--start/--end` trimming, `-j/--jobs`, GIF output; directories are mirrored under the output dir and already-converted files are skipped
 
