@@ -1,8 +1,6 @@
 # Rust
 /target/
-/core/target/
 /cli/target/
-/server/target/
 Cargo.lock
 
 # IDE

@@ -238,7 +238,7 @@ impl ImageProcessor for Mp4Processor {
 }
 
 /// Check if ffmpeg is available in the system
-fn is_ffmpeg_available() -> bool {
+pub(crate) fn is_ffmpeg_available() -> bool {
     Command::new("ffmpeg")
         .arg("-version")
         .output()

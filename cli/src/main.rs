@@ -1,4 +1,5 @@
-use std::path::Path;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use anyhow::{Context, Result};
@@ -7,18 +8,18 @@ use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 
 use image_preparer::cli::{Cli, Command};
-use image_preparer::io::{collect_files, create_backup, read_file, resolve_output, write_file};
+use image_preparer::io::{collect_files, collect_files_matching, create_backup, read_file, resolve_output, write_file};
 use image_preparer::report::{FileResult, Report};
-use image_preparer_core::config::{ProcessingConfig, StripMode};
-use image_preparer_core::converter::{ConvertFormat, convert_image};
-use image_preparer_core::format::ImageFormat;
-use image_preparer_core::pipeline::Pipeline;
-use image_preparer_core::processor::png::{PngProcessor, inspect_png};
-use image_preparer_core::processor::jpg::{JpgProcessor, inspect_jpg};
-use image_preparer_core::processor::mp3::{Mp3Processor, inspect_mp3};
-use image_preparer_core::processor::wav::{WavProcessor, inspect_wav};
-use image_preparer_core::processor::webp::{WebpProcessor, inspect_webp};
-use image_preparer_core::processor::mp4::{Mp4Processor, inspect_mp4, extract_frames_to_png};
+use image_preparer::config::{ProcessingConfig, StripMode};
+use image_preparer::converter::{AUDIO_EXTENSIONS, ConvertFormat, MEDIA_EXTENSIONS, convert_image, convert_media};
+use image_preparer::format::ImageFormat;
+use image_preparer::pipeline::Pipeline;
+use image_preparer::processor::png::{PngProcessor, inspect_png};
+use image_preparer::processor::jpg::{JpgProcessor, inspect_jpg};
+use image_preparer::processor::mp3::{Mp3Processor, inspect_mp3};
+use image_preparer::processor::wav::{WavProcessor, inspect_wav};
+use image_preparer::processor::webp::{WebpProcessor, inspect_webp};
+use image_preparer::processor::mp4::{Mp4Processor, inspect_mp4, extract_frames_to_png};
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -50,22 +51,37 @@ fn main() -> Result<()> {
             to,
             quality,
             no_lossy,
+            strip,
+            bitrate,
+            width,
+            height,
+            start,
+            end,
+            jobs,
             recursive,
             backup,
         } => {
             let config = ProcessingConfig {
                 quality: *quality,
-                speed: 3,
                 no_lossy: *no_lossy,
-                strip: StripMode::All,
-                dry_run: false,
+                strip: *strip,
                 backup: *backup,
-                extract_frames: false,
-                fps: 0.0,
-                resize_width: None,
-                resize_height: None,
+                resize_width: *width,
+                resize_height: *height,
+                audio_bitrate: bitrate.clone(),
+                start: start.clone(),
+                end: end.clone(),
+                ..Default::default()
             };
-            handle_convert(input, output.as_deref(), to, *recursive, &config)
+            // `convert clip.webm clip.mp3` works without --to
+            let to = to
+                .clone()
+                .or_else(|| {
+                    let out = output.as_ref().filter(|o| !o.is_dir())?;
+                    Some(out.extension()?.to_string_lossy().into_owned())
+                })
+                .context("Pass --to FORMAT or an output file name with an extension")?;
+            handle_convert(input, output.as_deref(), &to, *recursive, *jobs, &config)
         }
         Command::Inspect { input, recursive } => {
             handle_inspect(input, *recursive)
@@ -209,20 +225,45 @@ fn handle_convert(
     output: Option<&Path>,
     target_format_str: &str,
     recursive: bool,
+    jobs: Option<usize>,
     config: &ProcessingConfig,
 ) -> Result<()> {
-    let target_format = ConvertFormat::from_str(target_format_str)
-        .ok_or_else(|| anyhow::anyhow!("Invalid target format: {}. Use: png, jpg, jpeg, webp", target_format_str))?;
+    // png/jpg/webp go through the image encoders, everything else through ffmpeg
+    let image_format = ConvertFormat::from_str(target_format_str);
+    if image_format.is_some() && (config.start.is_some() || config.end.is_some()) {
+        anyhow::bail!("--start/--end only apply to audio/video targets");
+    }
+    let target_ext = match image_format {
+        Some(format) => format.extension().to_string(),
+        None => target_format_str.to_ascii_lowercase(),
+    };
 
-    let files = collect_files(input, recursive)
-        .context("Failed to collect input files")?;
+    // In a mixed folder, only pick up files that can become the target:
+    // no cover art -> mp3, no phone clips -> jpg, no songs -> gif
+    let is_image = |ext: &str| image::ImageFormat::from_extension(ext).is_some();
+    let audio_target = AUDIO_EXTENSIONS.contains(&target_ext.as_str());
+    let image_target = target_ext != "gif" && is_image(&target_ext);
+    let files = collect_files_matching(input, recursive, |p| {
+        let Some(ext) = p.extension().map(|e| e.to_string_lossy().to_ascii_lowercase()) else {
+            return false;
+        };
+        MEDIA_EXTENSIONS.contains(&ext.as_str())
+            && if audio_target {
+                !is_image(&ext)
+            } else if image_target {
+                is_image(&ext)
+            } else {
+                !(target_ext == "gif" && AUDIO_EXTENSIONS.contains(&ext.as_str()))
+            }
+    })
+    .context("Failed to collect input files")?;
 
     if files.is_empty() {
         println!("No supported files found.");
         return Ok(());
     }
 
-    println!("Converting {} file(s) to {}...", files.len(), target_format.as_str());
+    println!("Converting {} file(s) to {}...", files.len(), target_ext);
 
     let pb = ProgressBar::new(files.len() as u64);
     pb.set_style(
@@ -234,30 +275,50 @@ fn handle_convert(
 
     let report = Mutex::new(Report::new());
 
-    files.par_iter().for_each(|input_path| {
+    // 0 = rayon default (one thread per core)
+    let pool = rayon::ThreadPoolBuilder::new().num_threads(jobs.unwrap_or(0)).build()?;
+
+    // Mirrors the input tree under the output dir, same as compress
+    let outputs: Vec<PathBuf> = files
+        .iter()
+        .map(|f| resolve_output(f, input, output).with_extension(&target_ext))
+        .collect();
+    let mut output_uses: HashMap<&PathBuf, usize> = HashMap::new();
+    for out in &outputs {
+        *output_uses.entry(out).or_default() += 1;
+    }
+
+    pool.install(|| files.par_iter().zip(&outputs).for_each(|(input_path, output_path)| {
         let result = (|| -> std::result::Result<FileResult, anyhow::Error> {
-            let data = read_file(input_path)?;
-            let original_size = data.len() as u64;
+            // clip.mkv + clip.mp3 -> clip.mp4 would race on (or overwrite a source) one file
+            if output_uses[output_path] > 1 {
+                anyhow::bail!(
+                    "several inputs convert to {} - convert them separately",
+                    output_path.display()
+                );
+            }
 
-            let converted = convert_image(&data, target_format, config)?;
-            let converted_size = converted.len() as u64;
+            // Already in the target format (no output given) — nothing to do
+            if output_path == input_path {
+                return Ok(FileResult {
+                    path: input_path.clone(),
+                    original_size: 0,
+                    compressed_size: 0,
+                    skipped: true,
+                    error: None,
+                });
+            }
 
-            // Determine output path with new extension
-            let output_path = if let Some(output_dir) = output {
-                if output_dir.is_dir() {
-                    let file_name = input_path.file_stem().unwrap();
-                    output_dir.join(format!("{}.{}", file_name.to_string_lossy(), target_format.extension()))
-                } else {
-                    output_dir.to_path_buf()
-                }
-            } else {
-                input_path.with_extension(target_format.extension())
-            };
+            let original_size = std::fs::metadata(input_path)?.len();
 
             if config.backup && output_path.exists() {
-                create_backup(&output_path)?;
+                create_backup(output_path)?;
             }
-            write_file(&output_path, &converted)?;
+            match image_format {
+                Some(format) => write_file(output_path, &convert_image(&read_file(input_path)?, format, config)?)?,
+                None => convert_media(input_path, output_path, config)?,
+            }
+            let converted_size = std::fs::metadata(output_path)?.len();
 
             Ok(FileResult {
                 path: input_path.clone(),
@@ -273,7 +334,7 @@ fn handle_convert(
                 pb.set_message(format!(
                     "{} → {}",
                     input_path.file_name().unwrap().to_string_lossy(),
-                    target_format.as_str()
+                    target_ext
                 ));
                 report.lock().unwrap().add(file_result);
             }
@@ -290,7 +351,7 @@ fn handle_convert(
         }
 
         pb.inc(1);
-    });
+    }));
 
     pb.finish_with_message("Done!");
     report.lock().unwrap().print_summary();

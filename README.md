@@ -1,9 +1,6 @@
 # Image Preparer Workspace
 
-A Rust workspace containing two projects for image/video/audio processing:
-
-1. **CLI** - Command-line utility for local file processing
-2. **Server** - HTTP API server for remote processing
+A Rust workspace containing a command-line utility for image/video/audio processing.
 
 ## Project Structure
 
@@ -11,16 +8,12 @@ A Rust workspace containing two projects for image/video/audio processing:
 image_preparer_workspace/
 ├── Cargo.toml          # Workspace configuration
 ├── README.md           # This file
-├── cli/                # CLI tool
-│   ├── src/
-│   ├── Cargo.toml
-│   ├── README.md       # CLI documentation
-│   ├── INSTALL.md      # Installation guide
-│   └── CLAUDE.md       # AI development guide
-└── server/             # Web server
+└── cli/                # CLI tool (binary + library)
     ├── src/
     ├── Cargo.toml
-    └── README.md       # API documentation
+    ├── README.md       # CLI documentation
+    ├── INSTALL.md      # Installation guide
+    └── CLAUDE.md       # AI development guide
 ```
 
 ## Features
@@ -32,15 +25,17 @@ image_preparer_workspace/
 | PNG    | ✅       | ✅      | ✅      | -       |
 | JPG    | ✅       | ✅      | ✅      | -       |
 | WebP   | ✅       | ✅      | ✅      | -       |
-| MP3    | ✅*      | -       | ✅      | -       |
-| MP4    | ✅       | -       | ✅      | ✅      |
+| MP3    | ✅*      | ✅**    | ✅      | -       |
+| MP4    | ✅       | ✅**    | ✅      | ✅      |
 
 *MP3 compression = metadata stripping only
+
+**Audio/video conversion is done by ffmpeg (see Convert below)
 
 ### Operations
 
 - **Compress**: Reduce file size with lossy/lossless algorithms + optional resize
-- **Convert**: Transform between image formats (PNG ↔ JPG ↔ WebP)
+- **Convert**: Transform between image formats (PNG ↔ JPG ↔ WebP), or convert audio/video (e.g. `--to mp3`, `--to mp4`) via ffmpeg. Any target the installed ffmpeg supports works. Supports resizing, trimming (`--start/--end`), audio bitrate (`-b`) and parallel jobs (`-j`)
 - **Inspect**: View detailed metadata
 - **Extract**: Extract video frames to PNG images
 
@@ -55,39 +50,18 @@ cargo install --path cli
 # Use from anywhere
 image_preparer compress photo.png -q 80
 image_preparer convert image.png --to webp
+image_preparer convert clip.webm clip.mp3
 image_preparer inspect video.mp4
 image_preparer extract video.mp4 ./frames/
 ```
 
 See [CLI README](cli/README.md) for complete documentation.
 
-### Web Server
-
-```bash
-# Start server
-cargo run --release --bin server
-
-# Use API
-curl -X POST \
-  -F "file=@image.png" \
-  -F "quality=85" \
-  -o compressed.png \
-  http://localhost:3000/compress
-```
-
-See [Server README](server/README.md) for API documentation.
-
 ## Building
 
 ```bash
-# Build everything
+# Build
 cargo build --release
-
-# Build CLI only
-cargo build --release --bin image_preparer
-
-# Build server only
-cargo build --release --bin server
 
 # Run tests (when available)
 cargo test
@@ -96,46 +70,34 @@ cargo test
 ## System Requirements
 
 - **Rust**: Edition 2021, version 1.70+
-- **ffmpeg**: Required for MP4 processing
+- **ffmpeg**: Required for MP4 processing and audio/video conversion
   - macOS: `brew install ffmpeg`
   - Linux: `apt install ffmpeg`
 - **Memory**: Scales with file size (processes in RAM)
 
 ## Architecture
 
-The workspace uses a shared library pattern:
+The workspace has a single member, the `cli` crate, which is both a library and a binary:
 
 ```
 CLI (image_preparer)
-├── Binary: src/main.rs
-└── Library: src/lib.rs ───┐
-                           │
-Server                     │
-├── Binary: src/main.rs    │
-└── Uses library: ─────────┘
+├── Library: src/lib.rs   (pipeline, processors, converter, config)
+└── Binary: src/main.rs   (uses the library as image_preparer::...)
 ```
 
-### Shared Components
+### Library Components
 
-Both CLI and server use the same processing logic:
 - **Pipeline**: Format detection and routing
 - **Processors**: Format-specific implementations (PNG, WebP, MP3, MP4)
-- **Converter**: Image format conversion
+- **Converter**: Image format conversion (`image` crate) and audio/video conversion (ffmpeg)
 - **Config**: Processing configuration
 
-### CLI-Specific
+### Binary (main.rs)
 
 - Subcommand parsing (clap)
 - Progress bars (indicatif)
 - Parallel file processing (rayon)
 - File I/O utilities
-
-### Server-Specific
-
-- HTTP routing (axum)
-- Multipart form handling
-- JSON responses
-- CORS middleware
 
 ## Development
 
@@ -145,22 +107,22 @@ Both CLI and server use the same processing logic:
 2. Create processor in `cli/src/processor/<format>.rs`
 3. Implement `ImageProcessor` trait
 4. Register in CLI handlers
-5. Test with both CLI and server
+5. Test with the CLI
 6. Update documentation
 
 See [CLAUDE.md](cli/CLAUDE.md) for detailed development guide.
 
 ### Code Organization
 
-- **cli/src/**: CLI-specific code and shared library
+- **cli/src/**: Binary and library code
   - `main.rs`: CLI entry point
   - `lib.rs`: Library exports
-  - `processor/`: Format processors
-  - `converter.rs`: Format conversion
+  - `config.rs`: Processing configuration
+  - `converter.rs`: Format conversion (images and audio/video)
+  - `error.rs`: Error types
+  - `format.rs`: Format detection
   - `pipeline.rs`: Processing pipeline
-- **server/src/**: Server-specific code
-  - `main.rs`: Server entry point
-  - `handlers.rs`: API endpoints
+  - `processor/`: Format processors
 
 ## Typical Workflows
 
@@ -195,22 +157,23 @@ image_preparer extract video.mp4 ./frames/ --fps 1
 image_preparer extract video.mp4 ./frames/ --fps 0
 ```
 
-### Web API Integration
+### Audio/Video Conversion
 
 ```bash
-# Compress image via API
-curl -X POST \
-  -F "file=@photo.png" \
-  -F "quality=80" \
-  -o compressed.png \
-  http://localhost:3000/compress
+# Extract audio from a video (format from the output extension)
+image_preparer convert clip.webm clip.mp3
 
-# Convert format via API
-curl -X POST \
-  -F "file=@image.png" \
-  -F "to=webp" \
-  -o output.webp \
-  http://localhost:3000/convert
+# Folder of FLAC to MP3 at 192 kbps
+image_preparer convert ./music ./out --to mp3 -b 192k
+
+# Cut a fragment to MP3
+image_preparer convert talk.mp4 fragment.mp3 --start 1:30 --end 2:45
+
+# Video to GIF
+image_preparer convert clip.mp4 clip.gif --width 480 --start 5 --end 8
+
+# Photos folder to WebP at 1600px width
+image_preparer convert ./photos ./out --to webp --width 1600
 ```
 
 ## Performance
@@ -237,7 +200,6 @@ GPL-3.0-or-later
 
 - [CLI README](cli/README.md) - Command-line usage
 - [CLI INSTALL](cli/INSTALL.md) - Installation guide
-- [Server README](server/README.md) - API documentation
 - [CLAUDE.md](cli/CLAUDE.md) - AI development context
 
 ## Contributing
@@ -246,10 +208,9 @@ This is a personal project, but suggestions are welcome.
 
 ## Known Limitations
 
-- MP4 processing requires ffmpeg
+- MP4 processing and audio/video conversion require ffmpeg
 - Large files loaded entirely into RAM
 - No streaming processing yet
-- Frame extraction only available in CLI (not API)
 
 ## Troubleshooting
 
@@ -265,12 +226,6 @@ This is a personal project, but suggestions are welcome.
 - Process files one at a time (not in parallel)
 - Use lossless mode (`--no-lossy`)
 
-### Server Won't Start
-
-- Check if port 3000 is in use: `lsof -i:3000`
-- Kill existing process: `lsof -ti:3000 | xargs kill`
-- Change port in `server/src/main.rs`
-
 ### Dependencies Won't Build
 
 - Update Rust: `rustup update`
@@ -278,6 +233,12 @@ This is a personal project, but suggestions are welcome.
 - Check ffmpeg: `brew install ffmpeg` (macOS)
 
 ## Changelog
+
+### Unreleased
+- Removed the HTTP server (`server/` crate and API); the project is now CLI-only
+- Merged the `core` crate into `cli` (single workspace member, code imports `image_preparer::...`)
+- `convert` now handles audio/video via ffmpeg (e.g. `convert clip.webm clip.mp3`); `--to` is optional and defaults to the output file's extension
+- `convert` options: `--strip` (default `none`, tags kept), `-b/--bitrate`, `--width/--height`, `--start/--end` trimming, `-j/--jobs`, GIF output; directories are mirrored under the output dir and already-converted files are skipped
 
 ### v0.1.0 (2026-02-06)
 - Initial workspace structure

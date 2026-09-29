@@ -2,7 +2,7 @@
 
 Command-line tool for compressing images/videos, converting between formats, and stripping metadata.
 
-> **Note**: This is part of the Image Preparer workspace. For the HTTP API server, see `../server/README.md`. For workspace documentation, see `../README.md`.
+> **Note**: This is part of the Image Preparer workspace. For workspace documentation, see `../README.md`.
 
 ## Features
 
@@ -11,7 +11,7 @@ Command-line tool for compressing images/videos, converting between formats, and
 - ✅ **JPEG** - Compression + format conversion
 - ✅ **MP3** - Metadata stripping (ID3 tags)
 - ✅ **MP4** - Video compression (70-96% reduction) + Frame extraction
-- 🔄 **Format conversion** - PNG ↔ JPG ↔ WebP
+- 🔄 **Format conversion** - PNG ↔ JPG ↔ WebP, plus audio/video (mp3, wav, flac, mp4, webm, ...) via ffmpeg
 - 🚀 **Parallel processing** for batch operations
 - 📊 **Metadata inspection** without modification
 - 🎯 **Configurable quality/speed trade-offs**
@@ -37,7 +37,7 @@ This installs `image_preparer` to `~/.cargo/bin/` (already in PATH).
 ### Prerequisites
 
 - Rust 1.70+ (install from [rustup.rs](https://rustup.rs))
-- **ffmpeg** (required for MP4 processing)
+- **ffmpeg** (required for MP4 processing and audio/video conversion)
   ```bash
   # macOS
   brew install ffmpeg
@@ -53,7 +53,7 @@ See [INSTALL.md](./INSTALL.md) for more installation options.
 The tool uses subcommands for different operations:
 
 - `compress` - Compress images or videos
-- `convert` - Convert between image formats
+- `convert` - Convert images, audio and video between formats
 - `inspect` - Display file metadata
 - `extract` - Extract frames from videos
 
@@ -117,11 +117,14 @@ image_preparer compress ./photos -r -q 85 --width 1200
 
 ### Convert Command
 
-Convert images between PNG, JPG, and WebP formats.
+Convert images between PNG, JPG, and WebP formats, or convert audio/video to any format ffmpeg supports.
 
 ```bash
 # Convert PNG to JPG
 image_preparer convert photo.png photo.jpg --to jpg
+
+# Target format is taken from the output extension when --to is omitted
+image_preparer convert clip.webm clip.mp3
 
 # Convert with specific quality
 image_preparer convert image.png image.jpg --to jpg -q 90
@@ -138,21 +141,67 @@ image_preparer convert photo.jpg photo.png --to png
 # Batch convert directory
 image_preparer convert ./photos ./output --to webp -r
 
-# Auto-detect output format from extension
-image_preparer convert input.png output.jpg --to jpg
+# Photos folder to WebP, resized to 1600px width
+image_preparer convert ./photos ./out --to webp --width 1600
+
+# Extract audio from a video
+image_preparer convert clip.webm --to mp3
+
+# Folder of FLAC to MP3 at 192 kbps, output into ./out
+image_preparer convert ./music ./out --to mp3 -b 192k
+
+# Cut a fragment (1:30 to 2:45 of the source) to MP3
+image_preparer convert talk.mp4 fragment.mp3 --start 1:30 --end 2:45
+
+# Video to GIF, 480px wide, seconds 5-8
+image_preparer convert clip.mp4 clip.gif --width 480 --start 5 --end 8
+
+# Convert video to MP4 with output path
+image_preparer convert video.mkv out.mp4 --to mp4
+
+# Folder of videos, at most 2 files at a time
+image_preparer convert ./videos ./out --to webm -j 2
 ```
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `-t, --to <format>` | Target: png, jpg, jpeg, webp, or any ffmpeg-supported audio/video extension. Optional: defaults to the output file's extension. Error if neither `--to` nor an output file with an extension is given; still needed for directory output |
+| `-q, --quality <0-100>` | Quality for lossy formats (default: 80). Audio bitrate / video CRF for ffmpeg targets (see below) |
+| `-b, --bitrate <rate>` | Explicit audio bitrate, e.g. `192k`. Overrides `-q` |
+| `--no-lossy` | Use lossless compression |
+| `--strip <all\|safe\|none>` | Metadata stripping (default: `none`). Audio/video tags (artist, title, ...) are kept by default; `--strip all` removes them. Image targets are re-encoded and never carry metadata |
+| `--width <pixels>` | Resize width (aspect ratio preserved if height omitted) |
+| `--height <pixels>` | Resize height (aspect ratio preserved if width omitted) |
+| `--start <pos>` | Trim audio/video start, e.g. `90` or `1:30`. Error with png/jpg/webp targets |
+| `--end <pos>` | Trim end, e.g. `2:45`. A position in the source, not a duration. Error with png/jpg/webp targets |
+| `-j, --jobs <N>` | Max files converted in parallel (default: CPU cores). Lower it for folders of videos, since each ffmpeg is already multi-threaded |
+| `-r, --recursive` | Process directories |
+| `--backup` | Create .bak backups |
 
 **Supported conversions:**
 - PNG → JPG, WebP
 - JPG → PNG, WebP
 - WebP → PNG, JPG
+- Audio/video → any format ffmpeg supports (mp3, wav, flac, ogg, opus, m4a, aac, mp4, webm, mkv, mov, avi, gif, ...)
 
-**Options:**
-- `-t, --to <format>` - Target format (png, jpg, jpeg, webp) **[required]**
-- `-q, --quality <0-100>` - Quality for lossy formats (default: 80)
-- `--no-lossy` - Use lossless compression
-- `-r, --recursive` - Process directories
-- `--backup` - Create .bak backups
+**Image vs. audio/video targets:**
+- `png|jpg|jpeg|webp` - handled by the `image` crate; input must be an image
+- Any other target - handed to ffmpeg, which picks container/codec from the extension (requires ffmpeg)
+- Audio-only targets drop the video stream. Without `-b`, quality comes from `-q`:
+  - mp3, m4a, aac, opus, wma, ac3: bitrate 32–256 kbps
+  - ogg, oga, mka (Vorbis): VBR quality `-q:a` = q/10 (0–10)
+  - wav, flac, aiff (lossless): ignore quality
+- Video targets map `-q` to CRF 18–35 (same formula as MP4 compression)
+- `--width/--height`: images are resized by the `image` crate (same as `compress`); video/gif via ffmpeg scale (a missing side keeps aspect ratio, even size)
+- GIF targets generate a palette from the clip (palettegen/paletteuse) for proper colors
+
+**Batch behavior:**
+- A directory input is mirrored under the output directory (subfolders kept, like `compress`); the output directory is created if missing
+- Directory inputs pick only files that can become the target: audio targets skip images (cover art), image targets (png/jpg/webp/bmp/tiff/avif) take only images, gif targets skip audio, video targets take everything
+- A file already in the target format with no output given (e.g. `./music --to mp3` containing mp3s) is skipped; the summary reads `Files processed: N | Skipped: M | Errors: K`
+- If several inputs would produce the same output (`clip.mkv` + `clip.mp3` → `clip.mp4`), all of them fail with "several inputs convert to ... - convert them separately" instead of overwriting each other
 
 ### Inspect Command
 
@@ -248,6 +297,25 @@ image_preparer compress ./videos -r -q 70 -s 3
 
 ```bash
 image_preparer convert ./photos ./output --to webp -r -q 80
+
+# Resize to 1600px width while converting
+image_preparer convert ./photos ./out --to webp --width 1600
+```
+
+### Convert audio and video
+
+```bash
+# webm to mp3
+image_preparer convert clip.webm --to mp3
+
+# Folder of FLAC to MP3 at 192k into ./out
+image_preparer convert ./music ./out --to mp3 -b 192k
+
+# Cut a fragment to mp3
+image_preparer convert talk.mp4 fragment.mp3 --start 1:30 --end 2:45
+
+# Video to GIF
+image_preparer convert clip.mp4 clip.gif --width 480 --start 5 --end 8
 ```
 
 ### Create video thumbnails
@@ -285,7 +353,7 @@ Found 5 file(s) to process.
  [████████████████████████████████████████] 5/5 Done!
 
 --- Summary ---
-Files processed: 5 | Errors: 0
+Files processed: 5 | Skipped: 0 | Errors: 0
 Total: 52.3 MB → 8.1 MB (84.5% reduction)
 ```
 
@@ -296,8 +364,10 @@ Total: 52.3 MB → 8.1 MB (84.5% reduction)
 | PNG | `.png` | ✅ | ✅ | ✅ | - |
 | WebP | `.webp` | ✅ | ✅ | ✅ | - |
 | JPEG | `.jpg`, `.jpeg` | ✅ | ✅ | ✅ | - |
-| MP3 | `.mp3` | - | - | ✅ | - |
-| MP4 | `.mp4`, `.m4v`, `.m4a` | ✅ | - | ✅ | ✅ |
+| MP3 | `.mp3` | - | ✅* | ✅ | - |
+| MP4 | `.mp4`, `.m4v`, `.m4a` | ✅ | ✅* | ✅ | ✅ |
+
+*Audio/video conversion is done by ffmpeg and works for any format the installed ffmpeg supports.
 
 ## Performance
 
@@ -324,7 +394,7 @@ cargo install --path . --force
 
 ### ffmpeg not found
 
-For MP4 processing:
+For MP4 processing and audio/video conversion:
 
 ```bash
 # macOS
@@ -375,12 +445,6 @@ GPL-3.0-or-later
 
 ### Workspace Documentation
 - **Workspace Overview**: [../README.md](../README.md)
-- **Server API**: [../server/README.md](../server/README.md)
-
-## Related Projects
-
-- **Web Server**: HTTP API for remote processing (see `../server/`)
-- Both CLI and server share the same processing logic
 
 ---
 

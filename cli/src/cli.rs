@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 
-use image_preparer_core::config::{ProcessingConfig, StripMode};
+use crate::config::{ProcessingConfig, StripMode};
 
 /// CLI tool for image/video compression, conversion, and metadata management
 #[derive(Debug, Parser)]
@@ -63,17 +63,18 @@ pub enum Command {
         height: Option<u32>,
     },
 
-    /// Convert images between formats (PNG, JPG, WebP)
+    /// Convert images, audio and video between formats (audio/video via ffmpeg)
     Convert {
         /// Input file or directory
         input: PathBuf,
 
-        /// Output file or directory (required for conversion)
+        /// Output file or directory (default: next to the input)
         output: Option<PathBuf>,
 
-        /// Target format (png, jpg, jpeg, webp)
-        #[arg(long, short = 't', value_name = "FORMAT", required = true)]
-        to: String,
+        /// Target format: png, jpg, webp, or any ffmpeg extension (mp3, flac, ogg, m4a, mp4, webm, mkv, gif, ...).
+        /// Defaults to the output file's extension
+        #[arg(long, short = 't', value_name = "FORMAT")]
+        to: Option<String>,
 
         /// Quality for lossy formats (0-100)
         #[arg(short, long, default_value_t = 80, value_parser = clap::value_parser!(u8).range(0..=100))]
@@ -82,6 +83,34 @@ pub enum Command {
         /// Use lossless compression where applicable
         #[arg(long)]
         no_lossy: bool,
+
+        /// Metadata strip mode (audio/video tags are kept by default)
+        #[arg(long, default_value = "none")]
+        strip: StripMode,
+
+        /// Audio bitrate, e.g. 192k (overrides --quality for audio)
+        #[arg(long, short = 'b')]
+        bitrate: Option<String>,
+
+        /// Resize width in pixels (preserves aspect ratio if height is omitted)
+        #[arg(long)]
+        width: Option<u32>,
+
+        /// Resize height in pixels (preserves aspect ratio if width is omitted)
+        #[arg(long)]
+        height: Option<u32>,
+
+        /// Start position for audio/video, e.g. 90 or 1:30
+        #[arg(long)]
+        start: Option<String>,
+
+        /// End position in the source for audio/video, e.g. 2:45
+        #[arg(long)]
+        end: Option<String>,
+
+        /// Max files converted in parallel (default: CPU cores)
+        #[arg(short, long)]
+        jobs: Option<usize>,
 
         /// Process directories recursively
         #[arg(short, long)]
@@ -143,6 +172,7 @@ impl Cli {
             fps: 0.0,
             resize_width: cmd_resize_width,
             resize_height: cmd_resize_height,
+            ..Default::default()
         }
     }
 }

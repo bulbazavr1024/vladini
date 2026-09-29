@@ -3,12 +3,21 @@ use std::path::{Path, PathBuf};
 
 use walkdir::WalkDir;
 
-use image_preparer_core::error::ProcessingError;
-use image_preparer_core::format::ImageFormat;
+use crate::error::ProcessingError;
+use crate::format::ImageFormat;
 
 /// Collect all supported image files from the input path.
 /// If `recursive` is true, walk subdirectories.
 pub fn collect_files(input: &Path, recursive: bool) -> Result<Vec<PathBuf>, ProcessingError> {
+    collect_files_matching(input, recursive, |p| ImageFormat::from_path(p).is_some())
+}
+
+/// Like `collect_files`, but directory entries are kept by `keep` instead of the supported-format check.
+pub fn collect_files_matching(
+    input: &Path,
+    recursive: bool,
+    keep: impl Fn(&Path) -> bool,
+) -> Result<Vec<PathBuf>, ProcessingError> {
     if input.is_file() {
         return Ok(vec![input.to_path_buf()]);
     }
@@ -34,7 +43,7 @@ pub fn collect_files(input: &Path, recursive: bool) -> Result<Vec<PathBuf>, Proc
             continue;
         }
         let path = entry.into_path();
-        if ImageFormat::from_path(&path).is_some() {
+        if keep(&path) {
             files.push(path);
         }
     }

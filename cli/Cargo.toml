@@ -2,7 +2,7 @@
 name = "image_preparer"
 version = "0.1.0"
 edition = "2021"
-description = "CLI tool for PNG/WebP compression, MP4 optimization, and metadata stripping for images, audio, and video files"
+description = "CLI tool for compression, format conversion, and metadata stripping of images, audio, and video files"
 license = "GPL-3.0-or-later"
 
 [lib]
@@ -14,7 +14,13 @@ name = "image_preparer"
 path = "src/main.rs"
 
 [dependencies]
-image_preparer_core = { path = "../core" }
+image = "0.25"
+imagequant = "4"
+lodepng = "3"
+oxipng = "10"
+id3 = "1.14"
+webp = "0.3"
+mp4 = "0.14"
 clap = { version = "4", features = ["derive"] }
 anyhow = "1"
 thiserror = "2"

@@ -1,6 +1,6 @@
 # Installation Guide
 
-> **Note**: This is the CLI tool from the Image Preparer workspace. For the web server, see `../server/README.md`.
+> **Note**: This is the CLI tool from the Image Preparer workspace. For workspace documentation, see `../README.md`.
 
 ## Quick Install (Recommended) ✅
 
@@ -142,6 +142,9 @@ image_preparer compress ~/Pictures/photo.png -q 80
 # Convert
 image_preparer convert ~/Pictures/photo.png --to webp
 
+# Convert audio/video (requires ffmpeg)
+image_preparer convert ~/Videos/clip.webm --to mp3
+
 # Inspect
 image_preparer inspect ~/Videos/video.mp4
 
@@ -163,7 +166,7 @@ image_preparer compress . -r -q 85
 - **Rust** 1.70+ ([install from rustup.rs](https://rustup.rs))
 - **Cargo** (comes with Rust)
 
-### Optional (for MP4 processing)
+### Optional (for MP4 processing and audio/video conversion)
 
 - **ffmpeg**
   ```bash
@@ -218,7 +221,7 @@ image_preparer --version
 
 ### ffmpeg not found
 
-For MP4 processing, ffmpeg must be installed:
+For MP4 processing and audio/video conversion, ffmpeg must be installed:
 
 ```bash
 # Check if installed

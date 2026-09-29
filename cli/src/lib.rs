@@ -1,5 +1,9 @@
 pub mod cli;
+pub mod config;
+pub mod converter;
+pub mod error;
+pub mod format;
 pub mod io;
+pub mod pipeline;
+pub mod processor;
 pub mod report;
-
-pub use image_preparer_core as core;

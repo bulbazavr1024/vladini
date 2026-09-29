@@ -61,8 +61,9 @@ impl Report {
     pub fn print_summary(&self) {
         println!("\n--- Summary ---");
         println!(
-            "Files processed: {} | Errors: {}",
+            "Files processed: {} | Skipped: {} | Errors: {}",
             self.success_count(),
+            self.results.iter().filter(|r| r.skipped).count(),
             self.error_count()
         );
 

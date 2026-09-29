@@ -1,53 +1,43 @@
 # Image Preparer - AI Context & Development Guide
 
 > **Purpose**: This file provides context for AI assistants working on this project.
-> **Last Updated**: 2026-02-06
+> **Last Updated**: 2026-09-29
 
 ## Project Overview
 
-**Image Preparer** is a workspace containing two projects:
-1. **CLI tool** - Command-line utility for local file processing
-2. **Web server** - HTTP API for remote processing
-
-Both projects share the same processing logic through the CLI library.
+**Image Preparer** is a workspace with a single member, the **CLI tool** (`cli/`): a command-line utility for local file processing. The crate is both a library and a binary.
 
 - **Language**: Rust (Edition 2021)
 - **License**: GPL-3.0-or-later
 - **Primary Use**: Batch processing of media files with configurable quality/speed trade-offs
 - **CLI Structure**: Subcommand-based (compress, convert, inspect, extract)
-- **API Structure**: REST endpoints using Axum framework
 
 ## Workspace Structure
 
 ```
 image_preparer_workspace/          # Workspace root
-├── Cargo.toml                     # Workspace configuration
+├── Cargo.toml                     # Workspace configuration (single member: cli)
 ├── README.md                      # Overall documentation
-├── test_server.sh                 # API test script
 │
-├── cli/                           # This directory
-│   ├── src/
-│   │   ├── lib.rs                # Library exports (for server)
-│   │   ├── main.rs               # CLI binary entry point
-│   │   ├── cli.rs                # Subcommand definitions
-│   │   ├── pipeline.rs           # Processor dispatcher
-│   │   ├── processor/            # Format processors
-│   │   ├── converter.rs          # Format conversion
-│   │   └── ...
-│   ├── Cargo.toml                # CLI dependencies
-│   ├── README.md                 # CLI documentation
-│   ├── INSTALL.md                # Installation guide
-│   └── CLAUDE.md                 # This file
-│
-└── server/                        # Web server
+└── cli/                           # This directory
     ├── src/
-    │   ├── main.rs               # Axum server setup
-    │   └── handlers.rs           # API endpoints
-    ├── Cargo.toml                # Server dependencies (imports CLI library)
-    └── README.md                 # API documentation
+    │   ├── lib.rs                # Library exports
+    │   ├── main.rs               # CLI binary entry point
+    │   ├── cli.rs                # Subcommand definitions
+    │   ├── config.rs             # ProcessingConfig, StripMode
+    │   ├── converter.rs          # Format conversion
+    │   ├── error.rs              # ProcessingError
+    │   ├── format.rs             # ImageFormat
+    │   ├── pipeline.rs           # Processor dispatcher
+    │   ├── processor/            # Format processors
+    │   └── ...
+    ├── Cargo.toml                # CLI dependencies
+    ├── README.md                 # CLI documentation
+    ├── INSTALL.md                # Installation guide
+    └── CLAUDE.md                 # This file
 ```
 
-**Critical Design**: The CLI is both a library and a binary. The server depends on the CLI library to reuse all processing logic.
+**Critical Design**: The crate is both a library and a binary. Processing logic lives in the library (`src/lib.rs`); `src/main.rs` uses it as `image_preparer::...`, and library modules refer to each other as `crate::...`. There is no separate core crate.
 
 ## Architecture
 
@@ -59,8 +49,6 @@ The project uses a **processor pipeline pattern** where format-specific processo
 Input → Config → Pipeline → Format Detection → Processor → Output
   ↓                                                            ↓
 CLI Subcommand                                        CLI Output
-  OR                                                      OR
-HTTP Request                                         HTTP Response
 ```
 
 **Key Components**:
@@ -102,7 +90,7 @@ pub enum Command {
 image_preparer compress <input> [output] [options]
 
 # Convert between formats
-image_preparer convert <input> [output] --to <format> [options]
+image_preparer convert <input> [output] [--to <format>] [options]
 
 # Inspect metadata
 image_preparer inspect <input> [options]
@@ -150,7 +138,7 @@ image_preparer extract <input> <output> [options]
   - `None`: Return unchanged
 - **Dependencies**: `id3`
 - **API Notes**: Use `Tag::read_from2()` not deprecated `read_from()`
-- **Commands**: compress, inspect
+- **Commands**: compress, convert (via ffmpeg), inspect
 
 ### ✅ MP4 (`src/processor/mp4.rs`)
 - **Compression**: Requires **ffmpeg** (system dependency)
@@ -164,11 +152,14 @@ image_preparer extract <input> <output> [options]
 - **Dependencies**: `mp4` (parsing), `ffmpeg` (processing)
 - **Typical reduction**: 70-96% (lossy), ~0.5% (lossless)
 - **System requirement**: `ffmpeg` must be installed
-- **Commands**: compress, inspect, extract
+- **Commands**: compress, convert (via ffmpeg), inspect, extract
 
 ## Format Conversion (`src/converter.rs`)
 
-The converter module handles image format conversion:
+The converter module handles image and audio/video conversion. The target format picks the path. `--to` is optional and defaults to the output file's extension (error if neither `--to` nor an output file with an extension is given; `--to` is still needed for directory output):
+
+- `png|jpg|jpeg|webp` → `convert_image` (`image` crate; input must be an image)
+- any other target (mp3, wav, flac, ogg, opus, m4a, aac, mp4, webm, mkv, mov, avi, gif, ...) → `convert_media` (ffmpeg)
 
 ```rust
 pub enum ConvertFormat { Png, Jpg, Webp }
@@ -178,18 +169,40 @@ pub fn convert_image(
     target_format: ConvertFormat,
     config: &ProcessingConfig,
 ) -> Result<Vec<u8>, ProcessingError>
+
+pub fn convert_media(
+    input: &Path,
+    output: &Path,
+    config: &ProcessingConfig,
+) -> Result<(), ProcessingError>
 ```
 
-**Supported conversions**:
+**Image conversions** (`convert_image`):
 - PNG → JPG, WebP
 - JPG → PNG, WebP
 - WebP → PNG, JPG
-
-**Implementation**:
 - Uses `image` crate for loading/encoding
 - PNG: Standard encoding
 - JPG: JPEG encoder with quality
 - WebP: webp crate with lossy/lossless
+
+**Audio/video conversions** (`convert_media`):
+- ffmpeg picks container/codec from the output extension, so anything the installed ffmpeg supports works
+- Audio-only targets drop the video stream (`-vn`). Quality: `-b, --bitrate 192k` is an explicit bitrate and overrides `-q`. Without it, `-q` maps to:
+  - mp3/m4a/aac/opus/wma/ac3: bitrate 32–256 kbps
+  - ogg/oga/mka (Vorbis): VBR quality `-q:a` = q/10 (0–10), because vorbis rejects fixed bitrates on mono/low settings
+  - wav/flac/aiff (lossless): ignored
+- Video targets map `-q` to CRF 18–35 (same formula as MP4 compression)
+- Metadata: `--strip <all|safe|none>`, default `none`, so audio/video tags (artist, title, ...) are kept; `--strip all` removes them (`-map_metadata -1`). Image targets are re-encoded and never carry metadata
+- `--width/--height`: images are resized by the `image` crate (same as compress); video/gif via ffmpeg scale (a missing side keeps aspect ratio, even size)
+- `--start/--end`: trim audio/video (`--start 1:30 --end 2:45`); `--end` is a position in the source, not a duration. Error with png/jpg/webp targets
+- GIF target: palette generated from the clip (palettegen/paletteuse) for proper colors
+- `-j, --jobs N`: max files converted in parallel (default: CPU cores); each ffmpeg is already multi-threaded, so lower it for folders of videos
+- Output paths: a directory input is mirrored under the output dir (subfolders kept, like compress); the output dir is created if missing
+- Directory inputs are filtered by `MEDIA_EXTENSIONS` (png jpg jpeg webp gif bmp tif tiff avif mp3 wav flac ogg oga opus m4a aac aiff wma ac3 mka mp4 m4v mov mkv webm avi flv wmv mpg mpeg 3gp), then only files that can become the target are picked: audio target skips images (cover art), image target (png/jpg/webp/bmp/tiff/avif) takes only images, gif target skips audio, video targets take everything
+- A file already in the target format with no output given (e.g. `./music --to mp3` containing mp3s) is skipped; the summary reads "Files processed: N | Skipped: M | Errors: K"
+- If several inputs would produce the same output (clip.mkv + clip.mp3 → clip.mp4), all of them fail with "several inputs convert to ... - convert them separately" instead of overwriting each other
+- Requires ffmpeg
 
 ## Main.rs Structure
 
@@ -223,10 +236,17 @@ compress [OPTIONS] <INPUT> [OUTPUT]
   --width <pixels>           # Resize width (preserves aspect ratio if height omitted)
   --height <pixels>          # Resize height (preserves aspect ratio if width omitted)
 
-convert [OPTIONS] --to <format> <INPUT> [OUTPUT]
-  -t, --to <png|jpg|webp>    # Required
-  -q, --quality <0-100>      # Default: 80
+convert [OPTIONS] <INPUT> [OUTPUT]
+  -t, --to <format>          # png|jpg|jpeg|webp or any ffmpeg extension; default: output file's extension
+  -q, --quality <0-100>      # Default: 80 (audio bitrate / video CRF for ffmpeg targets)
+  -b, --bitrate <e.g. 192k>  # Audio bitrate, overrides -q
   --no-lossy
+  --strip <all|safe|none>    # Default: none (audio/video tags kept)
+  --width <pixels>           # Resize (images: image crate, video/gif: ffmpeg scale)
+  --height <pixels>
+  --start <pos>              # Trim audio/video, e.g. 1:30 (error for png/jpg/webp)
+  --end <pos>                # Position in the source, e.g. 2:45 (not a duration)
+  -j, --jobs <N>             # Max parallel files (default: CPU cores)
   -r, --recursive
   --backup
 
@@ -306,7 +326,7 @@ Different formats interpret `StripMode` differently:
 ## System Requirements
 
 - **Rust**: Edition 2021, version 1.70+
-- **ffmpeg**: Required for MP4 processing
+- **ffmpeg**: Required for MP4 processing and audio/video conversion
   - macOS: `brew install ffmpeg`
   - Linux: `apt install ffmpeg`
 - **Memory**: Scales with file size (processes in RAM)
@@ -368,7 +388,7 @@ This is the CLI subproject within the workspace. See "Workspace Structure" secti
 cli/                      # This directory
 ├── src/
 │   ├── main.rs           # CLI binary entry point
-│   ├── lib.rs            # Library exports (for server use)
+│   ├── lib.rs            # Library exports
 │   ├── cli.rs            # Clap subcommand definitions
 │   ├── config.rs         # ProcessingConfig, StripMode
 │   ├── converter.rs      # Format conversion logic
@@ -389,7 +409,7 @@ cli/                      # This directory
 └── INSTALL.md            # Installation guide
 ```
 
-**Important**: The CLI is configured as both a library (`[lib]`) and a binary (`[[bin]]`) in Cargo.toml. This allows the server to import and reuse all processing logic.
+**Important**: The CLI is configured as both a library (`[lib]`) and a binary (`[[bin]]`) in Cargo.toml.
 
 ## Dependencies Summary
 
@@ -441,14 +461,9 @@ cargo install --path . --force     # From cli directory
 # Run CLI
 image_preparer compress photo.png -q 80
 image_preparer convert image.png --to jpg
+image_preparer convert clip.webm clip.mp3
 image_preparer inspect file.mp4
 image_preparer extract video.mp4 ./frames/
-
-# Build entire workspace (CLI + Server)
-cargo build --release  # From workspace root
-
-# Run server
-cargo run --release --bin server  # From workspace root
 
 # Help
 image_preparer --help
@@ -459,16 +474,13 @@ image_preparer convert --help
 ## Notes for AI Assistants
 
 - Always read this file at the start of a new session
-- This is a workspace with two projects: CLI (this directory) and server (../server/)
-- The CLI is both a library and a binary - changes affect both CLI and server
-- When adding features, test both CLI and server endpoints
+- This is a workspace with a single member: the CLI (this directory), which is both a library and a binary
 - Update this file when adding features or changing CLI structure
 - Keep the "Last Updated" date current
 - Maintain consistency with auto memory (`~/.claude/projects/.../memory/MEMORY.md`)
 - When debugging, check "Common Pitfalls" section first
 - For MP4 issues, verify ffmpeg is installed and accessible
 - CLI uses subcommands - never suggest flat command structure
-- Server API documentation is in `../server/README.md`
 
 ## CLI Migration Guide
 
@@ -487,61 +499,17 @@ image_preparer inspect file.png
 image_preparer compress file.png -q 80
 ```
 
-## Server Integration
-
-The CLI is designed to be used as a library by the web server (`../server/`):
-
-### Library Structure
+## Library Structure
 
 The CLI exports its functionality via `src/lib.rs`:
 - `config::*` - ProcessingConfig, StripMode
 - `pipeline::Pipeline` - Main processor dispatcher
 - `processor::*` - All format processors (PNG, WebP, MP3, MP4)
-- `converter::*` - Format conversion functions
+- `converter::*` - Format conversion functions (`convert_image`, `convert_media`)
 - `format::ImageFormat` - Format detection
 - `error::ProcessingError` - Error types
 
-### Server Usage Pattern
-
-The server imports the CLI library in `Cargo.toml`:
-```toml
-[dependencies]
-image_preparer = { path = "../cli" }
-```
-
-And uses it in handlers:
-```rust
-use image_preparer::pipeline::Pipeline;
-use image_preparer::processor::{png::PngProcessor, webp::WebpProcessor, ...};
-use image_preparer::config::{ProcessingConfig, StripMode};
-
-// Build pipeline
-let mut pipeline = Pipeline::new();
-pipeline.register(Box::new(PngProcessor));
-pipeline.register(Box::new(WebpProcessor));
-// ... register other processors
-
-// Process file
-let result = pipeline.process_file(path, &data, &config)?;
-```
-
-### API Endpoints
-
-The server exposes HTTP endpoints that mirror CLI subcommands:
-- `POST /compress` → `image_preparer compress`
-- `POST /convert` → `image_preparer convert`
-- `POST /inspect` → `image_preparer inspect`
-- `POST /extract` → `image_preparer extract` (not yet implemented)
-
-See `../server/README.md` for API documentation.
-
-### Testing Both CLI and Server
-
-When adding new features:
-1. Implement in CLI processor
-2. Test with CLI: `image_preparer compress test.png`
-3. Test with server: `curl -X POST -F "file=@test.png" http://localhost:3000/compress`
-4. Verify results are identical
+`src/main.rs` imports these as `image_preparer::...`; inside the library use `crate::...`.
 
 ## Contact & Resources
 

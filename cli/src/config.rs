@@ -52,6 +52,12 @@ pub struct ProcessingConfig {
     pub resize_width: Option<u32>,
     /// Target height for resize (None = no resize)
     pub resize_height: Option<u32>,
+    /// Audio bitrate for ffmpeg conversion, e.g. "192k" (None = derived from quality)
+    pub audio_bitrate: Option<String>,
+    /// Trim start for ffmpeg conversion, e.g. "1:30" or "90"
+    pub start: Option<String>,
+    /// Trim end (position in the source) for ffmpeg conversion
+    pub end: Option<String>,
 }
 
 impl Default for ProcessingConfig {
@@ -67,6 +73,9 @@ impl Default for ProcessingConfig {
             fps: 1.0,
             resize_width: None,
             resize_height: None,
+            audio_bitrate: None,
+            start: None,
+            end: None,
         }
     }
 }
