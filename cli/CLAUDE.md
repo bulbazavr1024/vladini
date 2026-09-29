@@ -189,7 +189,7 @@ pub fn convert_media(
 **Audio/video conversions** (`convert_media`):
 - ffmpeg picks container/codec from the output extension, so anything the installed ffmpeg supports works
 - Audio-only targets drop the video stream (`-vn`). Quality: `-b, --bitrate 192k` is an explicit bitrate and overrides `-q`. Without it, `-q` maps to:
-  - mp3/m4a/aac/opus/wma/ac3: bitrate 32–256 kbps
+  - mp3/m4a/aac/opus/wma/ac3: bitrate 32–256 kbps, capped at the source bitrate (re-encoding never inflates the file)
   - ogg/oga/mka (Vorbis): VBR quality `-q:a` = q/10 (0–10), because vorbis rejects fixed bitrates on mono/low settings
   - wav/flac/aiff (lossless): ignored
 - Video targets map `-q` to CRF 18–35 (same formula as MP4 compression)

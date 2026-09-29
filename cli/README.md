@@ -190,7 +190,7 @@ image_preparer convert ./videos ./out --to webm -j 2
 - `png|jpg|jpeg|webp` - handled by the `image` crate; input must be an image
 - Any other target - handed to ffmpeg, which picks container/codec from the extension (requires ffmpeg)
 - Audio-only targets drop the video stream. Without `-b`, quality comes from `-q`:
-  - mp3, m4a, aac, opus, wma, ac3: bitrate 32–256 kbps
+  - mp3, m4a, aac, opus, wma, ac3: bitrate 32–256 kbps, capped at the source bitrate (re-encoding never inflates the file)
   - ogg, oga, mka (Vorbis): VBR quality `-q:a` = q/10 (0–10)
   - wav, flac, aiff (lossless): ignore quality
 - Video targets map `-q` to CRF 18–35 (same formula as MP4 compression)

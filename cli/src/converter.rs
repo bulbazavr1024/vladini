@@ -202,8 +202,12 @@ pub fn convert_media(input: &Path, output: &Path, config: &ProcessingConfig) -> 
             None if matches!(ext.as_str(), "ogg" | "oga" | "mka") => {
                 cmd.arg("-q:a").arg((config.quality / 10).to_string())
             }
-            // quality 0-100 -> 32-256 kbps (opus caps mono at 256k); lossless codecs (wav, flac) ignore it
-            None => cmd.arg("-b:a").arg(format!("{}k", (config.quality as u32 * 256 / 100).max(32))),
+            // quality 0-100 -> 32-256 kbps (opus caps mono at 256k), but never above the source:
+            // re-encoding can't add quality, only size. Lossless codecs (wav, flac) ignore it
+            None => {
+                let kbps = (config.quality as u32 * 256 / 100).min(source_kbps(input).unwrap_or(u32::MAX));
+                cmd.arg("-b:a").arg(format!("{}k", kbps.max(32)))
+            }
         };
     } else {
         if let Some(bitrate) = &config.audio_bitrate {
@@ -253,6 +257,17 @@ pub fn convert_media(input: &Path, output: &Path, config: &ProcessingConfig) -> 
     Ok(())
 }
 
+/// Overall bitrate of a media file in kbps, if ffprobe can tell
+fn source_kbps(input: &Path) -> Option<u32> {
+    let out = Command::new("ffprobe")
+        .args(["-v", "error", "-show_entries", "format=bit_rate", "-of", "csv=p=0"])
+        .arg(input)
+        .output()
+        .ok()?;
+    let bps: u64 = String::from_utf8_lossy(&out.stdout).trim().parse().ok()?;
+    u32::try_from(bps.div_ceil(1000)).ok()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -297,6 +312,33 @@ mod tests {
         let size = std::fs::metadata(&mp3).unwrap().len();
         assert!(convert_media(&mp3, &mp3, &ProcessingConfig::default()).is_err());
         assert_eq!(std::fs::metadata(&mp3).unwrap().len(), size);
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn convert_media_never_inflates_audio() {
+        if !is_ffmpeg_available() {
+            eprintln!("skipped: ffmpeg not installed");
+            return;
+        }
+        let dir = std::env::temp_dir().join(format!("image_preparer_inflate_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        // Typical YouTube-style audio webm: opus well below the default mp3 bitrate
+        let webm = dir.join("talk.webm");
+        let status = Command::new("ffmpeg")
+            .args(["-nostdin", "-y", "-loglevel", "error",
+                   "-f", "lavfi", "-i", "anoisesrc=d=5:a=0.1", "-ac", "2", "-c:a", "libopus", "-b:a", "64k"])
+            .arg(&webm)
+            .status()
+            .unwrap();
+        assert!(status.success());
+
+        let mp3 = dir.join("talk.mp3");
+        convert_media(&webm, &mp3, &ProcessingConfig::default()).unwrap();
+        let (src, out) = (std::fs::metadata(&webm).unwrap().len(), std::fs::metadata(&mp3).unwrap().len());
+        // mp3 bitrates come in fixed steps, so allow landing on the next one up
+        assert!(out as f64 <= src as f64 * 1.15, "{} -> {} bytes", src, out);
 
         std::fs::remove_dir_all(&dir).unwrap();
     }
